@@ -1,0 +1,32 @@
+{
+  "name": "csvtoppt",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "generate:sitemap": "node generate-sitemap.js",
+    "build:canonical": "vite build"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "flowbite": "^2.5.2",
+    "flowbite-typography": "^1.0.5",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
+    "openai": "^4.103.0",
+    "qrcode": "^1.5.4",
+    "stripe": "^18.2.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.3",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.13",
+    "vite": "^6.3.5"
+  }
+}
