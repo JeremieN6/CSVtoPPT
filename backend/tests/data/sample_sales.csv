@@ -1,0 +1,9 @@
+year,month,sales,region,channel
+2024,Jan,120,North,Online
+2024,Feb,150,North,Store
+2024,Mar,90,South,Online
+2024,Apr,180,South,Store
+2024,May,200,East,Online
+2024,Jun,170,East,Store
+2024,Jul,130,West,Online
+2024,Aug,160,West,Store

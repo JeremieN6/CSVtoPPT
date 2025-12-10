@@ -62,6 +62,8 @@ htmlcov/
 
 # Backend generated files
 backend/generated/
+# backend/**/data/
+backend/**/output/plots/
 backend/__pycache__/
 backend/**/__pycache__/
 backend/**/*.pyc

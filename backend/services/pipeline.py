@@ -1,6 +1,7 @@
 """High-level pipeline orchestrating Modules A through E."""
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -8,8 +9,8 @@ from typing import Any, Dict, List, Optional
 from backend.modules.module_a_loader import load_and_parse_file
 from backend.modules.module_b_analysis import analyze_dataset
 from backend.modules.module_c_plotting import generate_plots
-from backend.modules.module_d_texts import generate_texts
 from backend.modules.module_e_ppt import build_presentation
+from backend.modules.module_h_texts_ai import generate_texts_ai
 from backend.services.utils import (
     build_generated_filename,
     cleanup_path,
@@ -59,12 +60,15 @@ def run_pipeline(
         if not plots:
             warnings.append("Aucun graphique n'a pu être généré.")
 
-        texts = generate_texts(
+        text_style = (additional_options or {}).get("text_style", "normal")
+        texts_ai = _generate_texts_with_module_h(
             analysis,
             plots,
+            style=text_style,
             use_ai=use_ai,
             api_key=api_key,
         )
+        texts_for_ppt = _prepare_texts_for_presentation(texts_ai, plots)
 
         ppt_filename = build_generated_filename(title)
         ppt_path = GENERATED_DIR / ppt_filename
@@ -75,7 +79,7 @@ def run_pipeline(
         build_summary = build_presentation(
             title,
             plots,
-            texts,
+            texts_for_ppt,
             str(ppt_path),
             theme=theme,
             options=presentation_options,
@@ -92,3 +96,64 @@ def run_pipeline(
         raise PipelineError(str(exc)) from exc
     finally:
         cleanup_path(workspace)
+
+
+def _generate_texts_with_module_h(
+    analysis: Dict[str, Any],
+    plots: List[Dict[str, Any]],
+    *,
+    style: str,
+    use_ai: bool,
+    api_key: Optional[str],
+) -> Dict[str, Any]:
+    """Appelle Module H en gérant la clé OpenAI et les fallback nécessaires."""
+
+    viz_plan = {"plots": plots}
+    env_var = "OPENAI_API_KEY"
+    previous_value = os.environ.get(env_var)
+    try:
+        if api_key and use_ai:
+            os.environ[env_var] = api_key
+        elif not use_ai:
+            os.environ.pop(env_var, None)
+        # Sinon : on laisse la variable telle quelle pour utiliser une clé déjà fournie.
+        return generate_texts_ai(analysis, viz_plan, style=style)
+    finally:
+        if previous_value is not None:
+            os.environ[env_var] = previous_value
+        else:
+            os.environ.pop(env_var, None)
+
+
+def _prepare_texts_for_presentation(
+    texts_ai: Dict[str, Any],
+    plots: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Convertit la structure Module H en format attendu par Module E."""
+
+    per_column = texts_ai.get("per_column", {}) if isinstance(texts_ai, dict) else {}
+    analyses = []
+    for plot in plots:
+        column = plot.get("column")
+        column_text = per_column.get(column, {}) if isinstance(per_column, dict) else {}
+        segments = [
+            column_text.get("analysis"),
+            column_text.get("insights"),
+            column_text.get("anomalies"),
+        ]
+        text = " ".join(segment.strip() for segment in segments if isinstance(segment, str) and segment.strip())
+        analyses.append(
+            {
+                "column": column,
+                "graph_type": plot.get("graph_type"),
+                "title": f"Analyse de {column}",
+                "text": text or "Analyse non disponible.",
+            }
+        )
+    conclusion = texts_ai.get("global_summary") if isinstance(texts_ai, dict) else None
+    if not conclusion:
+        conclusion = texts_ai.get("global_intro") if isinstance(texts_ai, dict) else None
+    return {
+        "analyses": analyses,
+        "conclusion": conclusion or "Synthèse indisponible.",
+    }

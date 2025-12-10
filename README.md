@@ -1,6 +1,9 @@
-# CSV ➜ PPT SaaS
+# CSV ➜ PPT SaaS — v2.0.0
 
 Ce dépôt contient un pipeline complet pour transformer un dataset CSV/XLSX en présentation PowerPoint prête à être partagée.
+
+**Phase 1 (v1.0.0)** : Modules A–G développés et fonctionnels  
+**Phase 2 (v2.0.0)** : Fonctionnalités avancées en cours de développement
 
 - Modules A–E : ingestion, analyse, visualisations et génération de slides en Python.
 - Module F : API FastAPI orchestrant le pipeline et retournant le PPTX.
@@ -47,8 +50,28 @@ Par défaut, le frontend cible `http://localhost:8000`. Vous pouvez adapter via 
 
 ## 🧪 Endpoints utiles
 
-- `GET /health` → vérifie que l’API répond.
-- `POST /generate-report` → attend un fichier `file`, optionnellement `title`, `theme`, `use_ai`, `api_key`. Retourne un flux PPTX et la liste des warnings dans l’entête `X-Report-Warnings`.
+- `GET /health` → vérifie que l'API répond.
+- `POST /generate-report` → attend un fichier `file`, optionnellement `title`, `theme`, `use_ai`, `api_key`. Retourne un flux PPTX et la liste des warnings dans l'entête `X-Report-Warnings`.
+
+---
+
+## 🗺️ Roadmap Phase 2
+
+### Phase 2.A — IA Avancée
+- **Module H (v2.1.0)** : Génération IA de textes intelligents pour chaque slide
+- **Module I (v2.2.0)** : Création de thèmes PPT gérés en Python (Corporate, Minimal, Creative…)
+- **Module J (v2.3.0)** : Orchestration complète dans un fichier pipeline propre
+
+### Phase 2.B — Production-ready
+- **Module K (v2.4.0)** : Système de logs centralisé (backend + Python + pipeline)
+- **Module N (v2.5.0)** : Observabilité & erreurs proprement gérées (retours JSON + logs)
+
+### Phase 2.C — Expérience utilisateur
+- **Module L (v2.6.0)** : Dashboard utilisateur (historique, derniers fichiers générés)
+- **Module M (v2.7.0)** : Ajout d'options avant génération (sélection de colonnes, choix du style IA, choix du thème PPT)
+
+### Phase 2.D — Industrialisation
+- **Module O (v2.8.0)** : Architecture multi-worker (génération PPT dans un job séparé)
 
 ---
 
