@@ -5,3 +5,11 @@ pandas==2.2.3
 matplotlib==3.10.0
 python-pptx==1.0.2
 openpyxl==3.1.5
+bcrypt
+python-jose[cryptography]
+psycopg2
+psycopg2-binary
+sqlalchemy
+alembic
+python-dotenv
+email-validator

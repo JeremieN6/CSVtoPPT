@@ -7,11 +7,36 @@
                     <span class="text-4xl">📃</span>
                     <span class="self-center text-xl font-semibold text-gray-700 whitespace-nowrap dark:text-white">CSVtoPPT</span>
                 </RouterLink>
-                <div class="flex items-center lg:order-2">
-                    <RouterLink to="#" @click.prevent="openEmail"
-                                class="inline-flex justify-center items-center py-3 px-5 text-white font-medium text-center rounded-lg bg-blue-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-900">
-                        Contact
-                    </RouterLink>
+                <div class="flex items-center gap-3 lg:order-2">
+                    <template v-if="!isAuthenticated">
+                        <RouterLink
+                            to="/inscription"
+                            class="py-2.5 px-5 me-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700"
+                        >
+                            Inscription
+                        </RouterLink>
+                        <RouterLink
+                            to="/connexion"
+                            class="inline-flex justify-center items-center py-3 px-5 text-white font-medium text-center rounded-lg bg-blue-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-900"
+                        >
+                            Connexion
+                        </RouterLink>
+                    </template>
+                    <template v-else>
+                        <RouterLink
+                            to="/mon-compte"
+                            class="py-2.5 px-5 me-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700"
+                        >
+                            Mon compte
+                        </RouterLink>
+                        <button
+                            type="button"
+                            class="inline-flex justify-center items-center py-3 px-5 text-white font-medium text-center rounded-lg bg-blue-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-900"
+                            @click="handleLogout"
+                        >
+                            Déconnexion
+                        </button>
+                    </template>
                     <button @click="toggleMenu" type="button"
                         class="inline-flex items-center p-2 ml-1 text-sm text-gray-500 rounded-lg lg:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
                         :aria-expanded="isMenuOpen">
@@ -46,6 +71,15 @@
                                 {{ link.label }}
                             </a>
                         </li>
+                        <li>
+                            <a
+                                href="mailto:csvtoppt@sassify.com"
+                                class="block py-2 pr-4 pl-3 text-gray-700 border-b border-gray-100 hover:bg-gray-50 lg:hover:bg-transparent lg:border-0 lg:hover:text-primary-700 lg:p-0 dark:text-gray-400 lg:dark:hover:text-white dark:hover:bg-gray-700 dark:hover:text-white lg:dark:hover:bg-transparent dark:border-gray-700"
+                                @click.prevent="openEmail"
+                            >
+                                Contact
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -55,15 +89,52 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
 
+const AUTH_EVENT = 'csvtoppt-auth-changed'
+const CONTACT_EMAIL = 'contact@csvtoppt.com'
 const isMenuOpen = ref(false)
+const isAuthenticated = ref(false)
+const router = useRouter()
 const navLinks = [
     { href: '/convertisseur', label: 'Convertisseur' },
     { href: '#benefits', label: 'Bénéfices' },
     { href: '#faq', label: 'FAQ' },
 ]
+
+const syncAuthState = () => {
+    if (typeof window === 'undefined') {
+        isAuthenticated.value = false
+        return
+    }
+    isAuthenticated.value = Boolean(window.localStorage.getItem('access_token'))
+}
+
+const dispatchAuthEvent = (authenticated) => {
+    if (typeof window === 'undefined') {
+        return
+    }
+    window.dispatchEvent(
+        new CustomEvent(AUTH_EVENT, {
+            detail: { authenticated: Boolean(authenticated) },
+        }),
+    )
+}
+
+const handleAuthChanged = (event) => {
+    if (event?.detail && typeof event.detail.authenticated === 'boolean') {
+        isAuthenticated.value = event.detail.authenticated
+    } else {
+        syncAuthState()
+    }
+}
+
+const handleStorageAuthChange = (event) => {
+    if (event.key === 'access_token') {
+        syncAuthState()
+    }
+}
 
 const toggleMenu = () => {
     isMenuOpen.value = !isMenuOpen.value
@@ -73,9 +144,35 @@ const closeMenu = () => {
     isMenuOpen.value = false
 }
 
-// Fonction pour ouvrir l'email
 const openEmail = () => {
-    window.location.href = 'mailto:contact@jeremiecode.fr'
+    if (typeof window === 'undefined') {
+        return
+    }
+    window.location.href = `mailto:${CONTACT_EMAIL}`
+    closeMenu()
 }
+
+const handleLogout = () => {
+    if (typeof window === 'undefined') {
+        return
+    }
+    window.localStorage.removeItem('access_token')
+    window.localStorage.removeItem('user')
+    syncAuthState()
+    dispatchAuthEvent(false)
+    closeMenu()
+    router.push('/')
+}
+
+onMounted(() => {
+    syncAuthState()
+    window.addEventListener(AUTH_EVENT, handleAuthChanged)
+    window.addEventListener('storage', handleStorageAuthChange)
+})
+
+onBeforeUnmount(() => {
+    window.removeEventListener(AUTH_EVENT, handleAuthChanged)
+    window.removeEventListener('storage', handleStorageAuthChange)
+})
 
 </script>

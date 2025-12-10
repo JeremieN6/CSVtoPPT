@@ -6,12 +6,12 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from backend.modules.module_a_loader import load_and_parse_file
-from backend.modules.module_b_analysis import analyze_dataset
-from backend.modules.module_c_plotting import generate_plots
-from backend.modules.module_e_ppt import build_presentation
-from backend.modules.module_h_texts_ai import generate_texts_ai
-from backend.services.utils import (
+from modules.module_a_loader import load_and_parse_file
+from modules.module_b_analysis import analyze_dataset
+from modules.module_c_plotting import generate_plots
+from modules.module_e_ppt import build_presentation
+from modules.module_h_texts_ai import generate_texts_ai
+from services.utils import (
     build_generated_filename,
     cleanup_path,
     ensure_directory,

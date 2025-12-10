@@ -9,8 +9,11 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadF
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from backend.services.pipeline import PipelineError, run_pipeline
-from backend.services import utils
+from services.pipeline import PipelineError, run_pipeline
+from services import utils
+
+from auth.router import router as auth_router
+
 
 app = FastAPI(title="CSV to PPT API", version="0.1.0")
 app.add_middleware(
@@ -21,6 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 
 @app.get("/health")
 def health() -> dict:
