@@ -20,7 +20,7 @@
                         <p class="text-right text-sm text-gray-500 dark:text-gray-400">Idéal pour tester ou produire des slides ponctuelles.</p>
                     </div>
                     <div class="mt-8 flex items-baseline gap-2 text-gray-900 dark:text-white">
-                        <span class="text-4xl font-extrabold">Gratuit</span>
+                        <span class="text-4xl font-extrabold">0€</span>
                         <span class="text-sm text-gray-500 dark:text-gray-400">/ mois</span>
                     </div>
                                 <ul class="mt-8 space-y-4 text-sm text-gray-700 dark:text-gray-300">
@@ -28,13 +28,13 @@
                                                     <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                                                     </svg>
-                                        <span>3 conversions / mois</span>
+                                        <span>10 conversions / mois</span>
                                     </li>
                                     <li class="flex items-start gap-3">
                                                     <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                                                     </svg>
-                                        <span>3 slides maximum par export</span>
+                                        <span>8 slides maximum par export</span>
                                     </li>
                                     <li class="flex items-start gap-3">
                                                     <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -46,28 +46,30 @@
                                                     <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                                                     </svg>
-                                        <span>Template basique</span>
-                                    </li>
-                                    <li class="flex items-start gap-3">
-                                                    <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                                    </svg>
-                                        <span>Mise en forme automatique basique</span>
+                                        <span>Mise en forme automatique standard</span>
                                     </li>
                                     <li class="flex items-start gap-3">
                                                     <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l8 8M6 14L14 6" />
                                                     </svg>
-                                        <span>Pas de modification dans les slides</span>
+                                        <span>5000 lignes maximum</span>
+                                    </li>
+                                                                        <li class="flex items-start gap-3">
+                                                    <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l8 8M6 14L14 6" />
+                                                    </svg>
+                                        <span>Pas de personnalisation</span>
                                     </li>
                                     <li class="flex items-start gap-3">
                                                     <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l8 8M6 14L14 6" />
                                                     </svg>
-                                        <span>Watermark sur chaque page</span>
+                                        <span>Watermark</span>
                                     </li>
                                 </ul>
-                    <button class="mt-8 w-full rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-900 transition hover:border-blue-500 hover:text-blue-600 dark:border-gray-700 dark:text-white dark:hover:border-blue-500">Commencer gratuitement</button>
+                                <a href="/convertisseur">
+                                    <button class="mt-8 w-full rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-900 transition hover:border-blue-500 hover:text-blue-600 dark:border-gray-700 dark:text-white dark:hover:border-blue-500">Commencer gratuitement</button>
+                                </a>
                 </article>
 
                 <!-- Plan Pro -->
@@ -103,6 +105,24 @@
                                                     </svg>
                                         <span>Analyse et mise en forme intelligente des données (IA)</span>
                                     </li>
+                                                                        <li class="flex items-start gap-3">
+                                                    <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                                    </svg>
+                                        <span>Nombre de ligne illimitées</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                                    <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                                    </svg>
+                                        <span>Support prioritaire</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                                    <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                                    </svg>
+                                        <span>Historique d'export</span>
+                                    </li>
                                     <li class="flex items-start gap-3">
                                                     <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -112,7 +132,7 @@
                                             <span class="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:bg-blue-900/50 dark:text-blue-200">Bientôt</span>
                                         </span>
                                     </li>
-                                                                        <li class="flex items-start gap-3">
+                                    <!--<li class="flex items-start gap-3">
                                                     <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                                                     </svg>
@@ -120,24 +140,15 @@
                                             Templates personnalisables
                                             <span class="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:bg-blue-900/50 dark:text-blue-200">Bientôt</span>
                                         </span>
-                                    </li>
+                                    </li>-->
                                     <li class="flex items-start gap-3">
                                                     <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                                                     </svg>
-                                        <span>Mode sécurisé</span>
-                                    </li>
-                                    <li class="flex items-start gap-3">
-                                                    <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                                    </svg>
-                                        <span>Priorité de traitement</span>
-                                    </li>
-                                    <li class="flex items-start gap-3">
-                                                    <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                                    </svg>
-                                        <span>Support prioritaire</span>
+                                        <span>
+                                            Personnalisation dans l’interface
+                                            <span class="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:bg-blue-900/50 dark:text-blue-200">Bientôt</span>
+                                        </span>
                                     </li>
                                 </ul>
                     <button class="mt-8 w-full rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-600">Passer au plan Pro</button>
