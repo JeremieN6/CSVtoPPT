@@ -51,3 +51,13 @@ class TokenPayload(BaseModel):
     sub: UUID
     email: EmailStr
     exp: int
+
+
+class UserProfileUpdate(BaseModel):
+    first_name: Optional[str] = Field(default=None, max_length=150)
+    last_name: Optional[str] = Field(default=None, max_length=150)
+    address: Optional[str] = Field(default=None, max_length=255)
+    phone: Optional[str] = Field(default=None, max_length=50)
+    company: Optional[str] = Field(default=None, max_length=255)
+
+    model_config = ConfigDict(extra="forbid")

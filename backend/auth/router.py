@@ -49,3 +49,32 @@ def login_user(
 @router.get("/me", response_model=schemas.UserRead)
 def read_current_user(current_user: User = Depends(require_active_user)) -> schemas.UserRead:
     return schemas.UserRead.model_validate(current_user, from_attributes=True)
+
+
+@router.patch("/profile", response_model=schemas.UserRead)
+def update_profile(
+    payload: schemas.UserProfileUpdate,
+    current_user: User = Depends(require_active_user),
+    session: Session = Depends(get_session),
+) -> schemas.UserRead:
+    db_user = session.get(User, current_user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if updates:
+        for field, value in updates.items():
+            if hasattr(db_user, field):
+                setattr(db_user, field, _sanitize_optional_str(value))
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+
+    return schemas.UserRead.model_validate(db_user, from_attributes=True)
+
+
+def _sanitize_optional_str(value: str | None) -> str | None:
+    if value is None:
+        return None
+    trimmed = value.strip()
+    return trimmed or None
