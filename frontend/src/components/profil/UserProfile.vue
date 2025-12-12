@@ -32,20 +32,31 @@
           </svg>
           <h3 class="mb-2 text-gray-500 dark:text-gray-400">Conversions</h3>
           <span class="flex items-center text-2xl font-bold text-gray-900 dark:text-white">
-            24
-            <span class="ms-2 inline-flex items-center rounded bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">
-              <svg class="-ms-1 me-1 h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            {{ conversionsThisMonth }}
+            <span :class="trendBadgeClasses">
+              <svg :class="trendIconClasses" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v13m0-13 4 4m-4-4-4 4" />
               </svg>
-              10.3%
+              {{ trendLabel }}
             </span>
           </span>
-          <p class="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400 sm:text-base">
-            <svg class="me-1.5 h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-              <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 11h2v5m-2 0h4m-2.592-8.5h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-            </svg>
-            vs 20 les 3 derniers mois
+          <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 sm:text-base">
+            {{ trendHelperText }}
           </p>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 sm:text-base">
+            {{ usageSubtitle }}
+          </p>
+          <div v-if="hasFiniteLimit" class="mt-4 space-y-2">
+            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+              <span>0</span>
+              <span>{{ planLimitCopy }}</span>
+            </div>
+            <div class="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+              <div class="h-full rounded-full bg-primary-600 transition-all duration-300" :style="{ width: usageProgress + '%' }"></div>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ lastResetCopy }}</p>
+          </div>
+          <p v-else class="mt-4 text-xs text-gray-500 dark:text-gray-400">{{ lastResetCopy }}</p>
         </div>
       </div>
       <div class="py-4 md:py-8">
@@ -181,6 +192,7 @@ const userPlan = ref('free')
 const profileError = ref('')
 const userProfile = ref(createEmptyProfile())
 const profileForm = ref(createEmptyProfile())
+const usageStats = ref(createEmptyUsage())
 const isSavingProfile = ref(false)
 const saveProfileError = ref('')
 const saveProfileMessage = ref('')
@@ -189,10 +201,12 @@ const PLAN_CONFIG = {
   free: {
     badgeLabel: 'Compte Starter',
     badgeClasses: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
+    limit: 10,
   },
   pro: {
     badgeLabel: 'Compte Pro',
     badgeClasses: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
+    limit: Number.POSITIVE_INFINITY,
   },
 }
 
@@ -200,6 +214,64 @@ const resolvedPlan = computed(() => PLAN_CONFIG[userPlan.value] ?? PLAN_CONFIG.f
 const planBadgeLabel = computed(() => resolvedPlan.value.badgeLabel)
 const planBadgeClasses = computed(() => resolvedPlan.value.badgeClasses)
 const fullName = computed(() => buildFullName(userProfile.value))
+const conversionsThisMonth = computed(() => Number(usageStats.value.conversions_this_month ?? 0))
+const conversionsLastMonth = computed(() => Number(usageStats.value.conversions_last_month ?? 0))
+const planLimitValue = computed(() => resolvedPlan.value.limit ?? Number.POSITIVE_INFINITY)
+const hasFiniteLimit = computed(() => Number.isFinite(planLimitValue.value))
+const usageProgress = computed(() => {
+  if (!hasFiniteLimit.value || planLimitValue.value <= 0) {
+    return 0
+  }
+  const ratio = (conversionsThisMonth.value / planLimitValue.value) * 100
+  return Math.min(100, Math.max(0, Math.round(ratio)))
+})
+const usageSubtitle = computed(() =>
+  hasFiniteLimit.value
+    ? `${conversionsThisMonth.value}/${planLimitValue.value} conversions ce mois`
+    : `${conversionsThisMonth.value} conversions générées`
+)
+const planLimitCopy = computed(() => (hasFiniteLimit.value ? `${planLimitValue.value} / mois` : 'Illimité'))
+const trendDelta = computed(() => conversionsThisMonth.value - conversionsLastMonth.value)
+const trendPercent = computed(() => {
+  if (conversionsLastMonth.value === 0) {
+    return conversionsThisMonth.value === 0 ? 0 : 100
+  }
+  return Math.round((trendDelta.value / conversionsLastMonth.value) * 100)
+})
+const trendLabel = computed(() => `${Math.abs(trendPercent.value)}%`)
+const isTrendPositive = computed(() => trendDelta.value >= 0)
+const trendBadgeClasses = computed(() =>
+  isTrendPositive.value
+    ? 'ms-2 inline-flex items-center rounded bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200'
+    : 'ms-2 inline-flex items-center rounded bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900 dark:text-red-200'
+)
+const trendIconClasses = computed(() =>
+  `-ms-1 me-1 h-4 w-4 ${isTrendPositive.value ? '' : 'rotate-180'}`
+)
+const trendHelperText = computed(() => {
+  if (conversionsLastMonth.value === 0 && conversionsThisMonth.value === 0) {
+    return 'Aucune conversion enregistrée sur les deux derniers mois.'
+  }
+  if (conversionsLastMonth.value === 0) {
+    return 'Premières conversions enregistrées ce mois-ci.'
+  }
+  return `vs ${conversionsLastMonth.value} le mois dernier`
+})
+const lastResetCopy = computed(() => {
+  if (!hasFiniteLimit.value) {
+    return 'Conversions illimitées sur votre plan Pro.'
+  }
+  const raw = usageStats.value.last_reset_date
+  if (!raw) {
+    return 'Réinitialisation automatique chaque début de mois.'
+  }
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.valueOf())) {
+    return 'Réinitialisation automatique chaque début de mois.'
+  }
+  const formatted = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long' }).format(parsed)
+  return `Dernière remise à zéro le ${formatted}`
+})
 
 function createEmptyProfile() {
   return {
@@ -208,6 +280,14 @@ function createEmptyProfile() {
     address: '',
     phone: '',
     company: '',
+  }
+}
+
+function createEmptyUsage() {
+  return {
+    conversions_this_month: 0,
+    conversions_last_month: 0,
+    last_reset_date: null,
   }
 }
 
@@ -250,6 +330,16 @@ function applyProfile(payload = {}) {
   profileForm.value = { ...createEmptyProfile(), ...userProfile.value }
 }
 
+function applyUsage(payload = {}) {
+  usageStats.value = {
+    conversions_this_month:
+      Number(payload.conversions_this_month ?? usageStats.value.conversions_this_month ?? 0),
+    conversions_last_month:
+      Number(payload.conversions_last_month ?? usageStats.value.conversions_last_month ?? 0),
+    last_reset_date: payload.last_reset_date ?? usageStats.value.last_reset_date ?? null,
+  }
+}
+
 const hydrateFromStoredUser = () => {
   const rawUser = localStorage.getItem('user')
   if (!rawUser) {
@@ -265,6 +355,7 @@ const hydrateFromStoredUser = () => {
       userPlan.value = cachedUser.plan
     }
     applyProfile(cachedUser)
+    applyUsage(cachedUser)
   } catch (error) {
     console.warn('Unable to parse cached user', error)
   }
@@ -307,6 +398,7 @@ const fetchProfile = async () => {
       userPlan.value = data.plan
     }
     applyProfile(data)
+    applyUsage(data)
     localStorage.setItem('user', JSON.stringify(data))
   } catch (error) {
     hydrateFromStoredUser()
@@ -357,14 +449,17 @@ const handleSaveProfile = async () => {
       userPlan.value = updatedUser.plan
     }
     applyProfile(updatedUser)
+    applyUsage(updatedUser)
 
     try {
       const cachedUser = JSON.parse(localStorage.getItem('user') ?? '{}')
-      const mergedUser = { ...cachedUser, ...updatedUser }
+      const usageSnapshot = { ...usageStats.value }
+      const mergedUser = { ...cachedUser, ...usageSnapshot, ...updatedUser }
       localStorage.setItem('user', JSON.stringify(mergedUser))
     } catch (storageError) {
       console.warn('Unable to merge cached user with updated data', storageError)
-      localStorage.setItem('user', JSON.stringify(updatedUser))
+      const fallbackPayload = { ...usageStats.value, ...updatedUser }
+      localStorage.setItem('user', JSON.stringify(fallbackPayload))
     }
 
     saveProfileMessage.value = 'Informations mises à jour.'

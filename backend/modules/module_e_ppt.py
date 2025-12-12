@@ -67,6 +67,13 @@ THEME_PRESETS = {
     },
 }
 
+TEMPLATE_THEME_MAP = {
+    "default": "corporate",
+    "pro_template": "minimal",
+}
+
+DEFAULT_WATERMARK_LABEL = "CSVtoPPT · Version Free"
+
 
 def get_theme_config(theme_name: str) -> Tuple[Dict[str, Any], Optional[str]]:
     theme = THEME_PRESETS.get(theme_name.lower())
@@ -282,7 +289,8 @@ def build_presentation(
     options: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     options = options or {}
-    theme_cfg, warning = get_theme_config(theme)
+    resolved_theme = _resolve_theme(theme, options.get("template"))
+    theme_cfg, warning = get_theme_config(resolved_theme)
     errors: List[str] = []
     if warning:
         errors.append(warning)
@@ -329,6 +337,8 @@ def build_presentation(
         apply_footer_and_brand(prs, options, theme_cfg)
     except Exception as exc:  # pragma: no cover
         errors.append(f"Impossible d'appliquer le footer: {exc}")
+
+    _apply_watermark(prs, options, theme_cfg)
 
     try:
         output_file = Path(output_path)
@@ -394,3 +404,31 @@ def _order_plots(plots: List[Dict[str, Any]], plots_order: Optional[List[str]]) 
         return plots
     priority = {value: index for index, value in enumerate(plots_order)}
     return sorted(plots, key=lambda p: priority.get(p.get("column"), len(priority)))
+
+
+def _resolve_theme(theme: str, template: Optional[str]) -> str:
+    if not template:
+        return theme
+    return TEMPLATE_THEME_MAP.get(template.lower(), theme)
+
+
+def _apply_watermark(prs, options: Dict[str, Any], theme_cfg: Dict[str, Any]) -> None:
+    if not options.get("watermark"):
+        return
+    label = options.get("watermark_label") or DEFAULT_WATERMARK_LABEL
+    for slide in prs.slides:
+        textbox = slide.shapes.add_textbox(
+            left=prs.slide_width - Inches(4.5),
+            top=prs.slide_height - Inches(0.8),
+            width=Inches(4.0),
+            height=Inches(0.4),
+        )
+        frame = textbox.text_frame
+        frame.clear()
+        paragraph = frame.paragraphs[0]
+        paragraph.text = label
+        paragraph.font.size = Pt(12)
+        paragraph.font.name = theme_cfg.get("body_font", "Calibri")
+        paragraph.font.color.rgb = _rgb(theme_cfg.get("subtitle", "4A4A4A"))
+        paragraph.font.bold = True
+        paragraph.alignment = PP_ALIGN.RIGHT

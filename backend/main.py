@@ -3,16 +3,22 @@ from __future__ import annotations
 
 import traceback
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
 
-from services.pipeline import PipelineError, run_pipeline
+from services.pipeline import PipelineError, pipeline_run, run_pipeline
 from services import utils
 
 from auth.router import router as auth_router
+from auth.models import User
+from auth.security import require_active_user
+from auth.service import get_session
+from modules.module_a_loader import load_and_parse_file
+from modules.module_j_plan_limits import check_usage_limits
 
 
 app = FastAPI(title="CSV to PPT API", version="0.1.0")
@@ -85,3 +91,107 @@ async def generate_report(
         raise HTTPException(status_code=500, detail=f"Erreur interne: {str(exc)}") from exc
     finally:
         utils.cleanup_path(upload_dir)
+
+
+@app.post("/convert")
+async def convert_dataset(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    title: str = Form("Rapport automatique"),
+    theme: str = Form("corporate"),
+    use_ai: bool = Form(False),
+    api_key: Optional[str] = Form(None),
+    current_user: User = Depends(require_active_user),
+    session: Session = Depends(get_session),
+) -> FileResponse:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Aucun fichier reçu.")
+    if not utils.is_allowed_extension(file.filename):
+        raise HTTPException(status_code=400, detail="Format non supporté. Fournissez un CSV ou XLSX.")
+
+    upload_dir = utils.make_temp_dir("upload_")
+    ppt_path: Optional[str] = None
+    usage_snapshot = _snapshot_usage_state(current_user)
+
+    try:
+        saved_file = await utils.save_upload_file(file, upload_dir)
+        utils.validate_file_size(saved_file)
+
+        parsed = load_and_parse_file(str(saved_file))
+        dataframe = parsed.get("dataframe")
+        diagnostic = parsed.get("diagnostic", {})
+        if dataframe is None:
+            raise HTTPException(status_code=400, detail=diagnostic.get("error") or "Impossible de lire le fichier fourni.")
+
+        enforcement = check_usage_limits(current_user, dataframe, requested_slide_count=None)
+        if not enforcement.get("allowed"):
+            raise HTTPException(status_code=403, detail=enforcement.get("error") or "Limite de plan atteinte.")
+
+        pipeline_result = pipeline_run(
+            df=dataframe,
+            diagnostic=diagnostic,
+            title=title,
+            theme=theme,
+            use_ai=use_ai,
+            api_key=api_key,
+            plan_params=enforcement.get("params"),
+        )
+        ppt_path = pipeline_result["pptx_path"]
+        warnings = pipeline_result.get("warnings") or []
+
+        filename = f"{utils.slugify(title)}.pptx"
+        response = FileResponse(
+            ppt_path,
+            filename=filename,
+            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        )
+        if warnings:
+            response.headers["X-Report-Warnings"] = " | ".join(warnings[:5])
+
+        background_tasks.add_task(utils.safe_delete_file, ppt_path)
+
+        session.add(current_user)
+        session.commit()
+
+        return response
+    except HTTPException:
+        session.rollback()
+        _restore_usage_state(current_user, usage_snapshot)
+        if ppt_path:
+            utils.safe_delete_file(ppt_path)
+        raise
+    except ValueError as exc:
+        session.rollback()
+        _restore_usage_state(current_user, usage_snapshot)
+        if ppt_path:
+            utils.safe_delete_file(ppt_path)
+        raise HTTPException(status_code=400, detail=str(exc))
+    except PipelineError as exc:
+        session.rollback()
+        _restore_usage_state(current_user, usage_snapshot)
+        if ppt_path:
+            utils.safe_delete_file(ppt_path)
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:  # pragma: no cover
+        session.rollback()
+        _restore_usage_state(current_user, usage_snapshot)
+        if ppt_path:
+            utils.safe_delete_file(ppt_path)
+        print(f"ERROR in convert_dataset: {exc}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erreur interne: {str(exc)}") from exc
+    finally:
+        utils.cleanup_path(upload_dir)
+
+
+def _snapshot_usage_state(user: User) -> Dict[str, Any]:
+    return {
+        "conversions_this_month": getattr(user, "conversions_this_month", 0),
+        "conversions_last_month": getattr(user, "conversions_last_month", 0),
+        "last_reset_date": getattr(user, "last_reset_date", None),
+    }
+
+
+def _restore_usage_state(user: User, snapshot: Dict[str, Any]) -> None:
+    for field, value in snapshot.items():
+        setattr(user, field, value)

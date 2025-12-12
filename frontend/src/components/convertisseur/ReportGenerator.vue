@@ -129,6 +129,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import FileUploader from './FileUploader.vue'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const AUTH_TOKEN_KEY = 'access_token'
 
 const selectedFile = ref(null)
 const reportTitle = ref('Rapport automatique')
@@ -168,6 +169,12 @@ const generatePresentation = async () => {
     return
   }
 
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+  if (!token) {
+    errorMessage.value = 'Connectez-vous pour générer une présentation.'
+    return
+  }
+
   isLoading.value = true
   errorMessage.value = ''
   warnings.value = []
@@ -179,8 +186,11 @@ const generatePresentation = async () => {
   formData.append('theme', theme.value)
 
   try {
-    const response = await fetch(`${API_BASE_URL}/generate-report`, {
+    const response = await fetch(`${API_BASE_URL}/convert`, {
       method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
       body: formData,
     })
 
@@ -191,6 +201,9 @@ const generatePresentation = async () => {
         errorDetail = payload?.detail || errorDetail
       } catch (err) {
         console.error('Erreur parse JSON', err)
+      }
+      if (response.status === 403) {
+        errorDetail ||= 'Limite de plan atteinte.'
       }
       throw new Error(errorDetail)
     }

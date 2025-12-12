@@ -34,33 +34,65 @@ def run_pipeline(
     api_key: Optional[str] = None,
     additional_options: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Execute the full CSV/XLSX -> PPT pipeline.
+    """Execute the full CSV/XLSX -> PPT pipeline starting from a file path."""
 
-    Returns a dictionary containing ``pptx_path``, ``warnings`` and ``slides``.
-    """
+    parsed = load_and_parse_file(str(file_path))
+    dataframe = parsed.get("dataframe")
+    diagnostic = parsed.get("diagnostic", {})
+    if dataframe is None:
+        raise PipelineError(diagnostic.get("error") or "Impossible de lire le fichier fourni.")
+
+    return pipeline_run(
+        df=dataframe,
+        diagnostic=diagnostic,
+        title=title,
+        theme=theme,
+        use_ai=use_ai,
+        api_key=api_key,
+        additional_options=additional_options,
+    )
+    
+def pipeline_run(
+    *,
+    df,
+    diagnostic: Optional[Dict[str, Any]] = None,
+    title: str,
+    theme: str = "corporate",
+    use_ai: bool = False,
+    api_key: Optional[str] = None,
+    plan_params: Optional[Dict[str, Any]] = None,
+    additional_options: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Execute the pipeline from an already loaded dataframe."""
+
+    if df is None:
+        raise PipelineError("Aucune donnée fournie au pipeline.")
 
     workspace = Path(tempfile.mkdtemp(prefix="pipeline_"))
     plots_dir = workspace / "plots"
     plots_dir.mkdir(parents=True, exist_ok=True)
     warnings: List[str] = []
 
+    diagnostic = diagnostic or {}
+    plan_params = plan_params or {}
+    additional_options = additional_options or {}
+
     try:
-        parsed = load_and_parse_file(str(file_path))
-        dataframe = parsed.get("dataframe")
-        diagnostic = parsed.get("diagnostic", {})
-        if dataframe is None:
-            raise PipelineError(diagnostic.get("error") or "Impossible de lire le fichier fourni.")
+        analysis = analyze_dataset(df, diagnostic)
 
-        analysis = analyze_dataset(dataframe, diagnostic)
-
-        plot_result = generate_plots(dataframe, analysis, str(plots_dir))
-        plot_errors = plot_result.get("errors", [])
-        warnings.extend(plot_errors)
+        plot_result = generate_plots(df, analysis, str(plots_dir))
+        warnings.extend(plot_result.get("errors", []))
         plots = plot_result.get("plots", [])
         if not plots:
             warnings.append("Aucun graphique n'a pu être généré.")
 
-        text_style = (additional_options or {}).get("text_style", "normal")
+        plots, trimmed = _enforce_slide_cap(plots, diagnostic, plan_params.get("max_slides"))
+        if trimmed:
+            warnings.append(
+                f"{trimmed} graphique(s) ont été exclus pour respecter la limite de {plan_params.get('max_slides')} slides."
+            )
+
+        text_style = plan_params.get("ai_style") or additional_options.get("text_style") or "normal"
         texts_ai = _generate_texts_with_module_h(
             analysis,
             plots,
@@ -72,9 +104,15 @@ def run_pipeline(
 
         ppt_filename = build_generated_filename(title)
         ppt_path = GENERATED_DIR / ppt_filename
+
         presentation_options: Dict[str, Any] = {"diagnostic": diagnostic}
-        if additional_options:
-            presentation_options.update(additional_options)
+        presentation_options.update(additional_options)
+        if plan_params.get("watermark") is not None:
+            presentation_options["watermark"] = plan_params["watermark"]
+        if plan_params.get("template"):
+            presentation_options["template"] = plan_params["template"]
+        if plan_params.get("max_slides") is not None:
+            presentation_options["max_slides"] = plan_params["max_slides"]
 
         build_summary = build_presentation(
             title,
@@ -96,6 +134,23 @@ def run_pipeline(
         raise PipelineError(str(exc)) from exc
     finally:
         cleanup_path(workspace)
+
+
+def _enforce_slide_cap(
+    plots: List[Dict[str, Any]],
+    diagnostic: Dict[str, Any],
+    max_slides: Optional[int],
+) -> tuple[List[Dict[str, Any]], int]:
+    if not max_slides:
+        return plots, 0
+
+    base_slides = 2  # title + conclusion
+    if diagnostic:
+        base_slides += 1  # dataset overview
+    allowed_plot_slides = max(max_slides - base_slides, 0)
+    if allowed_plot_slides >= len(plots):
+        return plots, 0
+    return plots[:allowed_plot_slides], len(plots) - allowed_plot_slides
 
 
 def _generate_texts_with_module_h(

@@ -26,6 +26,14 @@ class UserRead(UserBase):
     credits: int = 10
     is_active: bool = True
     created_at: Optional[datetime] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    conversions_this_month: int = 0
+    conversions_last_month: int = 0
+    last_reset_date: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
