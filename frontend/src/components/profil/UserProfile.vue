@@ -107,6 +107,28 @@
                     </div>
                 </dd>-->
             </dl>
+            <div class="flex flex-wrap gap-3 pt-2">
+              <button
+                type="button"
+                class="inline-flex items-center rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 transition hover:border-blue-400 hover:text-blue-600 dark:border-blue-600 dark:text-blue-100"
+                :disabled="isPortalLoading"
+                @click="openBillingPortal"
+              >
+                <svg
+                  v-if="isPortalLoading"
+                  class="-ms-0.5 me-1.5 h-4 w-4 animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                {{ isPortalLoading ? 'Ouverture du portail…' : 'Gérer mon abonnement' }}
+              </button>
+            </div>
+            <p v-if="billingPortalError" class="text-sm text-red-600 dark:text-red-300">{{ billingPortalError }}</p>
           </div>
         </div>
         <button type="button" data-modal-target="accountInformationModal2" data-modal-toggle="accountInformationModal2" class="inline-flex w-full items-center justify-center rounded-lg bg-primary-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-800 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800 sm:w-auto">
@@ -196,6 +218,8 @@ const usageStats = ref(createEmptyUsage())
 const isSavingProfile = ref(false)
 const saveProfileError = ref('')
 const saveProfileMessage = ref('')
+const isPortalLoading = ref(false)
+const billingPortalError = ref('')
 
 const PLAN_CONFIG = {
   free: {
@@ -468,6 +492,50 @@ const handleSaveProfile = async () => {
     saveProfileError.value = fallbackMessage
   } finally {
     isSavingProfile.value = false
+  }
+}
+
+const openBillingPortal = async () => {
+  const token = localStorage.getItem('access_token')
+  if (!token) {
+    billingPortalError.value = 'Connectez-vous pour gérer votre abonnement.'
+    return
+  }
+
+  billingPortalError.value = ''
+  isPortalLoading.value = true
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/billing/portal`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      const payload = await safeJson(response)
+      const detail = payload?.detail || "Impossible d'ouvrir le portail Stripe."
+      throw new Error(detail)
+    }
+
+    const data = await response.json()
+    if (!data?.url) {
+      throw new Error('URL du portail introuvable.')
+    }
+    window.location.href = data.url
+  } catch (error) {
+    billingPortalError.value = error instanceof Error ? error.message : 'Erreur inattendue.'
+  } finally {
+    isPortalLoading.value = false
+  }
+}
+
+const safeJson = async (response) => {
+  try {
+    return await response.json()
+  } catch (err) {
+    console.warn('Réponse non JSON', err)
+    return null
   }
 }
 

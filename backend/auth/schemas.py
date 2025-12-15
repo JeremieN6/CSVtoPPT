@@ -31,6 +31,7 @@ class UserRead(UserBase):
     address: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
+    stripe_customer_id: Optional[str] = None
     conversions_this_month: int = 0
     conversions_last_month: int = 0
     last_reset_date: Optional[datetime] = None

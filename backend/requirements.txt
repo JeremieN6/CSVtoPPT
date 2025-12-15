@@ -13,3 +13,4 @@ sqlalchemy
 alembic
 python-dotenv
 email-validator
+stripe

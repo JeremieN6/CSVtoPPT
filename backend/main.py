@@ -14,6 +14,7 @@ from services.pipeline import PipelineError, pipeline_run, run_pipeline
 from services import utils
 
 from auth.router import router as auth_router
+from billing import billing_router, billing_webhook_router
 from auth.models import User
 from auth.security import require_active_user
 from auth.service import get_session
@@ -31,6 +32,8 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(billing_router)
+app.include_router(billing_webhook_router)
 
 @app.get("/health")
 def health() -> dict:

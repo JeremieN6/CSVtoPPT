@@ -39,6 +39,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     plan: Mapped[str] = mapped_column(String(50), nullable=False, server_default="free")
     credits: Mapped[int] = mapped_column(Integer, nullable=False, server_default="10")
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True)
     conversions_this_month: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     conversions_last_month: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     last_reset_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

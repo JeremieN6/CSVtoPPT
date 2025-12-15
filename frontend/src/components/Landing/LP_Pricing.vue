@@ -151,7 +151,23 @@
                                         </span>
                                     </li>
                                 </ul>
-                    <button class="mt-8 w-full rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-600">Passer au plan Pro</button>
+                    <button
+                        class="mt-8 w-full rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-70"
+                        :disabled="isCheckoutLoading"
+                        @click="redirectToCheckout"
+                    >
+                        <span v-if="isCheckoutLoading" class="flex items-center justify-center gap-2">
+                            <svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3.5-3.5L12 1v4a7 7 0 00-7 7H4z" />
+                            </svg>
+                            Redirection vers Stripe…
+                        </span>
+                        <span v-else>Passer au plan Pro</span>
+                    </button>
+                    <p v-if="billingError" class="mt-3 text-center text-sm text-red-600 dark:text-red-300">
+                        {{ billingError }}
+                    </p>
                 </article>
             </div>
         </div>
@@ -159,25 +175,63 @@
 </template>
 
 <script setup>
-</script>
+import { ref } from 'vue'
 
-<script setup>
-// async function redirectToCheckout() {
-//   try {
-//     const response = await fetch('/.netlify/functions/create-checkout-session', {
-//       method: 'POST'
-//     })
-//     const data = await response.json()
-//     console.log('Stripe response:', data)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const accessTokenKey = 'access_token'
 
-//     if (data.url) {
-//       window.location.href = data.url
-//     } else {
-//       alert("Erreur : pas de redirection reçue")
-//     }
-//   } catch (err) {
-//     console.error('Erreur de requête :', err)
-//     alert("Erreur lors de la tentative de redirection.")
-//   }
-// }
+const isCheckoutLoading = ref(false)
+const billingError = ref('')
+
+const requireToken = () => {
+    const token = localStorage.getItem(accessTokenKey)
+    if (!token) {
+        throw new Error('Connectez-vous pour accéder à la facturation.')
+    }
+    return token
+}
+
+const redirectToCheckout = async () => {
+    if (isCheckoutLoading.value) return
+    billingError.value = ''
+
+    try {
+        const token = requireToken()
+        isCheckoutLoading.value = true
+
+        const response = await fetch(`${API_BASE_URL}/billing/checkout`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ plan: 'pro' }),
+        })
+
+        if (!response.ok) {
+            const payload = await safeJson(response)
+            const detail = payload?.detail || 'Impossible de démarrer le paiement.'
+            throw new Error(detail)
+        }
+
+        const result = await response.json()
+        if (!result?.url) {
+            throw new Error('URL Stripe introuvable dans la réponse.')
+        }
+        window.location.href = result.url
+    } catch (error) {
+        billingError.value = error instanceof Error ? error.message : 'Erreur inattendue.'
+    } finally {
+        isCheckoutLoading.value = false
+    }
+}
+
+const safeJson = async (response) => {
+    try {
+        return await response.json()
+    } catch (err) {
+        console.warn('Réponse non JSON', err)
+        return null
+    }
+}
 </script>

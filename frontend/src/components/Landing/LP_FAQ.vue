@@ -2,7 +2,7 @@
     <section id="faq" class="bg-white dark:bg-gray-900">
         <div class="mx-auto max-w-screen-xl px-4 py-12 sm:py-20 lg:px-6">
             <div class="max-w-3xl">
-                <p class="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600 dark:text-blue-300">FAQ</p>
+                <p class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-blue-700 dark:border-blue-500/30 dark:bg-blue-900/20 dark:text-blue-200">FAQ</p>
                 <h2 class="mt-3 text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white">Questions fréquentes</h2>
                 <p class="mt-4 text-base text-gray-600 dark:text-gray-400">Tout ce qu’il faut savoir sur la conversion de vos données en slides prêtes à présenter.</p>
             </div>
