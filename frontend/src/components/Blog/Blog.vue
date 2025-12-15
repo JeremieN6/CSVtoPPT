@@ -4,7 +4,6 @@
       <div class="mx-auto max-w-screen-sm text-center lg:mb-16 mb-8">
           <h2 class="mb-4 text-3xl lg:text-4xl tracking-tight font-extrabold text-gray-900 dark:text-white">Le Blog</h2>
           <p class="font-light text-gray-500 sm:text-xl dark:text-gray-400">Retrouvez les meilleurs conseils pour dans ces articles de blog.</p>
-          <p class="italic text-xs dark:text-gray-300">D'après Theodore Bagwell (Frère Amour), ce site a été développé par un hérisson. 🥺 (ptdrrrr)</p>
       </div> 
       <div class="grid gap-8 lg:grid-cols-2">
           <article v-for="article in articles" :key="article.slug" class="p-6 bg-white rounded-lg border border-gray-200 shadow-md dark:bg-gray-800 dark:border-gray-700">
