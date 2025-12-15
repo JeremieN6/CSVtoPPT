@@ -99,8 +99,8 @@ const isAuthenticated = ref(false)
 const router = useRouter()
 const navLinks = [
     { href: '/convertisseur', label: 'Convertisseur' },
-    { href: '#benefits', label: 'Bénéfices' },
-    { href: '#faq', label: 'FAQ' },
+    { href: '/#benefits', label: 'Bénéfices' },
+    { href: '/#faq', label: 'FAQ' },
 ]
 
 const syncAuthState = () => {

@@ -12,11 +12,11 @@ URL: https://flowbite.com/docs/components/typography/
                 <header class="mb-4 lg:mb-6 not-format">
                     <address class="flex items-center mb-6 not-italic">
                         <div class="inline-flex items-center mr-3 text-sm text-gray-900 dark:text-white">
-                            <img class="mr-4 w-16 h-16 rounded-full object-cover" src="https://agence.jeremiecode.fr/assets/images/testimonials/img-4.jpg"
-                                alt="aMANDINE C.">
+                            <img class="mr-4 w-16 h-16 rounded-full object-cover" src="../../assets/images/moi.webp"
+                                alt="Jérémie N.">
                             <div>
-                                <a href="#" rel="author" class="text-xl font-bold text-gray-900 dark:text-white">Amandine C.</a>
-                                <p class="text-base text-gray-500 dark:text-gray-400">Auxiliaire petite enfance</p>
+                                <a href="#" rel="author" class="text-xl font-bold text-gray-900 dark:text-white">Jérémie N.</a>
+                                <p class="text-base text-gray-500 dark:text-gray-400">Développeur, & CEO de CSVtoPPT™ & SnapCode™ Agency</p>
                                 <p class="text-base text-gray-500 dark:text-gray-400"><time pubdate
                                         datetime="2025-27-05" title="February 8th, 2022">{{ article.date }}</time></p>
                             </div>
