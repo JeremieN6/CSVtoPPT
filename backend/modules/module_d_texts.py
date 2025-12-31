@@ -118,6 +118,60 @@ def _generate_text(
         return fallback_text
 
 
+def _generate_fallback_text(column_name: str, column_summary: Dict[str, Any], graph_type: str) -> str:
+    """Generate unique descriptive text for each column based on its statistics."""
+    
+    dtype = column_summary.get("dtype", "données")
+    missing_pct = column_summary.get("missing_percent", 0)
+    unique_values = column_summary.get("unique_values", "n/a")
+    
+    # Build unique sentences based on column characteristics
+    sentences = []
+    
+    # Intro sentence with column name and type
+    type_labels = {
+        "numerique": "numérique",
+        "categorie": "catégorielle",
+        "date": "temporelle",
+        "texte": "textuelle"
+    }
+    friendly_type = type_labels.get(dtype, dtype)
+    sentences.append(f"La colonne {column_name} contient des données {friendly_type}.")
+    
+    # Add diversity info
+    if isinstance(unique_values, int):
+        if unique_values <= 5:
+            sentences.append(f"On observe une faible diversité avec seulement {unique_values} valeurs distinctes.")
+        elif unique_values <= 20:
+            sentences.append(f"La diversité est modérée avec {unique_values} modalités différentes.")
+        else:
+            sentences.append(f"Une forte variété est constatée avec {unique_values} valeurs uniques.")
+    
+    # Add missing data info
+    if missing_pct > 0:
+        if missing_pct < 10:
+            sentences.append(f"Les données sont quasi-complètes ({missing_pct:.1f}% de valeurs manquantes).")
+        elif missing_pct < 30:
+            sentences.append(f"Attention au taux modéré de valeurs manquantes ({missing_pct:.1f}%).")
+        else:
+            sentences.append(f"Important : {missing_pct:.1f}% des valeurs sont absentes, ce qui peut impacter l'analyse.")
+    else:
+        sentences.append("Aucune valeur manquante détectée, données complètes.")
+    
+    # Add graph-specific insight
+    graph_insights = {
+        "histogram": "La distribution permet d'identifier les valeurs les plus fréquentes et les éventuels pics.",
+        "barchart": "Le graphique révèle les catégories dominantes et leur répartition.",
+        "linechart": "L'évolution temporelle met en évidence les tendances et variations.",
+        "boxplot": "Les statistiques montrent la dispersion et les valeurs extrêmes.",
+        "density": "La courbe de densité illustre la concentration des valeurs."
+    }
+    if graph_type in graph_insights:
+        sentences.append(graph_insights[graph_type])
+    
+    return " ".join(sentences)
+
+
 def generate_texts(
     analysis: Dict[str, Any],
     plots: List[Dict[str, Any]],
@@ -136,8 +190,15 @@ def generate_texts(
     for plot in plots:
         column_name = plot.get("column")
         column_summary = column_info.get(column_name, {}) if isinstance(column_info, dict) else {}
-        prompt = _build_chart_prompt(plot, column_summary)
-        text = _generate_text(prompt, client, config, DEFAULT_GENERIC_TEXT)
+        
+        # Generate unique text per column based on stats
+        if client:
+            prompt = _build_chart_prompt(plot, column_summary)
+            text = _generate_text(prompt, client, config, DEFAULT_GENERIC_TEXT)
+        else:
+            # Fallback: generate specific text from column stats
+            text = _generate_fallback_text(column_name, column_summary, plot.get("graph_type"))
+        
         analyses_output.append(
             {
                 "column": column_name,

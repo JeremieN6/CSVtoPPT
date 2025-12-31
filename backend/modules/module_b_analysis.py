@@ -69,24 +69,31 @@ def infer_column_type(series: pd.Series) -> str:
 def detect_visualization_options(
     dataframe: pd.DataFrame, column_types: Dict[str, str]
 ) -> Dict[str, List[str]]:
-    """List per-column chart types that make sense without generating them."""
+    """List per-column chart types that make sense without generating them.
+    
+    Returns ONE optimal chart type per column to avoid slide duplicates.
+    """
 
     candidates: Dict[str, List[str]] = {}
 
     for column, col_type in column_types.items():
-        options: List[str] = []
+        if _should_skip_visualization(column, dataframe[column], col_type):
+            continue
+        
+        # Select ONE best chart type per column to avoid duplicates
+        best_chart = None
         if col_type == "numeric_continuous":
-            options.extend(["histogram", "boxplot", "density"])
-            if _has_time_index(dataframe.index):
-                options.append("linechart")
+            # Prefer histogram for distributions
+            best_chart = "histogram"
         elif col_type == "numeric_discrete":
-            options.append("barchart")
+            best_chart = "barchart"
         elif col_type in {"categorical", "boolean"}:
-            options.extend(["barchart", "top_categories"])
+            best_chart = "barchart"
         elif col_type == "date":
-            options.append("linechart")
-        if options:
-            candidates[column] = options
+            best_chart = "linechart"
+        
+        if best_chart:
+            candidates[column] = [best_chart]
     return candidates
 
 
@@ -176,6 +183,9 @@ def _is_boolean_series(series: pd.Series) -> bool:
 
 
 def _is_datetime_series(series: pd.Series) -> bool:
+    # Avoid mistaking plain numeric metrics for datetimes (e.g. "Units Sold").
+    if pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_datetime64_any_dtype(series):
+        return False
     if pd.api.types.is_datetime64_any_dtype(series):
         return True
     with warnings.catch_warnings():
@@ -293,6 +303,19 @@ def _find_duplicated_columns(dataframe: pd.DataFrame) -> List[str]:
         else:
             seen[column] = series
     return duplicates
+
+
+def _should_skip_visualization(column_name: str, series: pd.Series, column_type: str) -> bool:
+    """Detect columns that should not produce standalone charts (IDs, index placeholders)."""
+
+    lowered = column_name.strip().lower()
+    if column_type in {"identifier", "constant"}:
+        return True
+    if lowered in {"index", "indice", "rowid", "row_id"}:
+        return True
+    if lowered.startswith("unnamed:"):
+        return True
+    return False
 
 def analyze_dataset(df: pd.DataFrame, diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     column_types = {column: infer_column_type(df[column]) for column in df.columns}

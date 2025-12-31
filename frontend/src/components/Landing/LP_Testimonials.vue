@@ -12,8 +12,8 @@
                 <blockquote>
                     <span class="text-yellow-400 mb-4">⭐⭐⭐⭐⭐</span>
                     <p class="text-2xl font-medium text-gray-900 dark:text-white">
-                        Le genre d'outil qui te fait te demander comment tu faisais avant<br><br>
-                        "Je dois présenter des dashboards toutes les semaines. Copier-coller mes tableaux dans PowerPoint, ajuster les colonnes, harmoniser les couleurs... c'était un calvaire. Maintenant ? Un clic et c'est fait. Les slides sont cohérentes, le format est nickel. Franchement, c'est devenu indispensable."</p>
+                        <span class="italic">"Le genre d'outil qui te fait te demander comment tu faisais avant.</span><br><br>
+                        Je dois présenter des dashboards toutes les semaines. Copier-coller mes tableaux dans PowerPoint, ajuster les colonnes, harmoniser les couleurs... c'était un calvaire. Maintenant ? Un clic et c'est fait. Les slides sont cohérentes, le format est nickel. Franchement, c'est devenu indispensable."</p>
                 </blockquote>
                 <figcaption class="flex items-center justify-center mt-6 space-x-3">
                     <img class="w-8 h-8 rounded-full object-cover"

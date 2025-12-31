@@ -4,12 +4,12 @@
             <h1 class="mb-6 text-3xl font-bold text-gray-900 lg:text-4xl dark:text-white">Politique de confidentialité
             </h1>
             <p class="mb-10 text-lg text-gray-600 dark:text-gray-400 lg:text-lg">
-                Lisez la politique de confidentialité de BabyDose™.
+                Lisez la politique de confidentialité de CSVtoPPT™.
                 Si vous avez une question, veuillez me contacter à <a
                     href="mailto:contact@jeremiecode.fr">contact@jeremiecode.fr</a>.
             </p>
             <hr class="my-12 border-gray-200 dark:border-gray-800">
-            <p class="text-gray-800 dark:text-white">Merci de faire partie de notre communauté chez BabyDose™ Inc. (« <strong>chez SnapCode Agency</strong> »,
+            <p class="text-gray-800 dark:text-white">Merci de faire partie de notre communauté chez CSVtoPPT™ Inc. (« <strong>chez SnapCode Agency</strong> »,
                 « <strong>nous</strong> », « <strong>notre</strong> »). Nous nous engageons à protéger vos informations
                 personnelles ainsi que votre droit à la vie privée. Si vous avez des questions ou des préoccupations
                 concernant cette politique de confidentialité ou nos pratiques relatives à vos données personnelles,

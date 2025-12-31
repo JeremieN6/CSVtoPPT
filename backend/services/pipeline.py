@@ -79,12 +79,24 @@ def pipeline_run(
 
     try:
         analysis = analyze_dataset(df, diagnostic)
+        analysis["diagnostic"] = diagnostic
 
         plot_result = generate_plots(df, analysis, str(plots_dir))
         warnings.extend(plot_result.get("errors", []))
         plots = plot_result.get("plots", [])
+        
+        # Filter out plots with invalid/missing images
+        valid_plots = []
+        for plot in plots:
+            image_path = plot.get("file_path")
+            if image_path and Path(image_path).exists():
+                valid_plots.append(plot)
+            else:
+                warnings.append(f"Graphique ignoré pour {plot.get('column')} (fichier non généré)")
+        
+        plots = valid_plots
         if not plots:
-            warnings.append("Aucun graphique n'a pu être généré.")
+            warnings.append("Aucun graphique valide n'a pu être généré.")
 
         plots, trimmed = _enforce_slide_cap(plots, diagnostic, plan_params.get("max_slides"))
         if trimmed:
@@ -93,12 +105,16 @@ def pipeline_run(
             )
 
         text_style = plan_params.get("ai_style") or additional_options.get("text_style") or "normal"
+        
+        # Pro plan gets AI-powered texts, Starter gets improved fallback
+        use_ai_texts = plan_params.get("ai_style") == "executive" and use_ai and api_key
+        
         texts_ai = _generate_texts_with_module_h(
             analysis,
             plots,
             style=text_style,
-            use_ai=use_ai,
-            api_key=api_key,
+            use_ai=use_ai_texts,
+            api_key=api_key if use_ai_texts else None,
         )
         texts_for_ppt = _prepare_texts_for_presentation(texts_ai, plots)
 
@@ -188,15 +204,34 @@ def _prepare_texts_for_presentation(
 
     per_column = texts_ai.get("per_column", {}) if isinstance(texts_ai, dict) else {}
     analyses = []
+
+    def _dedupe_segments(values: List[Any]) -> List[str]:
+        """Remove duplicate paragraphs while preserving order."""
+        seen = set()
+        cleaned: List[str] = []
+        for value in values:
+            if not isinstance(value, str):
+                continue
+            normalized = " ".join(value.split())
+            if not normalized:
+                continue
+            key = normalized.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            cleaned.append(normalized)
+        return cleaned
+
     for plot in plots:
         column = plot.get("column")
         column_text = per_column.get(column, {}) if isinstance(per_column, dict) else {}
-        segments = [
+        raw_segments = [
             column_text.get("analysis"),
             column_text.get("insights"),
             column_text.get("anomalies"),
         ]
-        text = " ".join(segment.strip() for segment in segments if isinstance(segment, str) and segment.strip())
+        segments = _dedupe_segments(raw_segments)
+        text = " ".join(segments)
         analyses.append(
             {
                 "column": column,

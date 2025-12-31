@@ -54,6 +54,14 @@ STYLE_PRESETS: Dict[str, Dict[str, str]] = {
 }
 
 
+ISSUE_LABELS = {
+    "empty_columns": "colonne vide",
+    "high_missing": "taux de valeurs manquantes élevé",
+    "bad_format": "format incohérent",
+    "duplicated_columns": "risque de doublon",
+    "long_text_columns": "texte très long",
+}
+
 @dataclass
 class AIModelConfig:
     """Paramètres d'appel OpenAI."""
@@ -186,20 +194,114 @@ def _build_dataset_context(analysis_results: Dict[str, Any], plots: List[Dict[st
     }
 
 
+def _friendly_dtype(dtype: str) -> str:
+    mapping = {
+        "numeric_continuous": "variable numérique continue",
+        "numeric_discrete": "variable numérique discrète",
+        "categorical": "variable catégorielle",
+        "categorie": "variable catégorielle",
+        "boolean": "champ booléen",
+        "text": "champ texte",
+        "date": "donnée temporelle",
+        "numerique": "variable numérique",
+    }
+    stripped = (dtype or "colonne").strip().lower()
+    return mapping.get(stripped, dtype or "colonne")
+
+
+def _describe_missing_ratio(value: Any) -> str:
+    try:
+        pct = float(value)
+    except (TypeError, ValueError):
+        return ""
+    if pct <= 0:
+        return "Aucune valeur manquante n'a été détectée."
+    if pct <= 10:
+        return f"Seulement {pct:.0f}% de valeurs manquent à ce stade."
+    if pct <= 30:
+        return f"Le taux de valeurs manquantes reste modéré ({pct:.0f}%)."
+    return f"Attention : environ {pct:.0f}% des valeurs sont absentes."
+
+
+def _describe_unique_values(value: Any, column: str) -> str:
+    try:
+        count = int(value)
+    except (TypeError, ValueError):
+        return ""
+    if count <= 1:
+        return f"La colonne {column} est quasi constante."
+    if count <= 5:
+        return f"La colonne {column} ne compte que {count} modalités distinctes."
+    if count <= 20:
+        return f"La diversité reste contenue avec {count} valeurs distinctes."
+    return f"On observe une forte variété avec {count} valeurs distinctes."
+
+
+def _format_notable_values(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple, set)):
+        items = list(value)
+        preview = ", ".join(str(item) for item in items[:5])
+        if len(items) > 5:
+            preview += ", ..."
+        return preview
+    return str(value)
+
+
+def _friendly_issue_name(issue_key: str) -> str:
+    return ISSUE_LABELS.get(issue_key, issue_key.replace("_", " "))
+
+
+def _insight_guidance_for_dtype(dtype_key: str) -> str:
+    dtype_key = (dtype_key or "").lower()
+    if dtype_key.startswith("numeric") or dtype_key == "numerique":
+        return "Surveillez la dispersion et les valeurs extrêmes pour repérer rapidement les comportements atypiques."
+    if dtype_key in {"categorical", "categorie"}:
+        return "Comparez le poids des catégories dominantes afin d'identifier les segments prioritaires."
+    if dtype_key == "date":
+        return "Une lecture chronologique mettra en évidence la saisonnalité et les ruptures d'activité."
+    if dtype_key == "boolean":
+        return "Mesurez l'équilibre entre les deux modalités pour prévoir la charge opérationnelle."
+    return "Inspectez les termes les plus fréquents pour comprendre les thèmes récurrents."
+
+
 def _local_column_text(column: str, metadata: Dict[str, Any]) -> Dict[str, str]:
-    dtype = metadata.get("profile", {}).get("dtype") or "colonne"
+    profile = metadata.get("profile", {}) or {}
+    dtype_key = (profile.get("column_type") or profile.get("dtype") or "colonne").lower()
+    dtype_label = _friendly_dtype(dtype_key)
     graph_types = metadata.get("graph_types") or []
-    issues = metadata.get("issues") or []
-    analysis = f"La colonne {column} ({dtype}) présente des informations exploitables via {', '.join(graph_types) or 'les graphiques disponibles'}."
-    insights = "Les distributions observées suggèrent de vérifier les valeurs dominantes et l'étendue générale."
-    anomalies = (
-        "Points de vigilance : " + ", ".join(issues)
-        if issues
-        else "Aucune anomalie majeure détectée au regard des diagnostics disponibles."
+    graph_sentence = (
+        "les graphiques " + ", ".join(graph_types)
+        if graph_types
+        else "les indicateurs descriptifs disponibles"
     )
+    analysis_parts = [
+        f"La colonne {column} ({dtype_label}) est explorée via {graph_sentence}."
+    ]
+    unique_sentence = _describe_unique_values(profile.get("unique_values"), column)
+    if unique_sentence:
+        analysis_parts.append(unique_sentence)
+    missing_sentence = _describe_missing_ratio(profile.get("missing_percent"))
+    if missing_sentence:
+        analysis_parts.append(missing_sentence)
+
+    insights_parts = [_insight_guidance_for_dtype(dtype_key)]
+    notable = profile.get("sample") or profile.get("examples")
+    formatted_values = _format_notable_values(notable)
+    if formatted_values:
+        insights_parts.append(f"Valeurs mises en avant : {formatted_values}.")
+
+    issues = metadata.get("issues") or []
+    if issues:
+        labels = ", ".join(_friendly_issue_name(issue) for issue in issues)
+        anomalies = f"Points de vigilance : {labels}."
+    else:
+        anomalies = "Aucun signal faible particulier n'a été détecté pour cette colonne."
+
     return {
-        "analysis": analysis,
-        "insights": insights,
+        "analysis": " ".join(analysis_parts),
+        "insights": " ".join(insights_parts),
         "anomalies": anomalies,
     }
 
@@ -346,17 +448,64 @@ def _local_default_structure(
     analysis_results: Dict[str, Any],
     plots: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    column_types = (analysis_results or {}).get("column_types", {})
-    per_column = {
-        column: _local_column_text(column, {"profile": {"dtype": dtype}, "graph_types": []})
-        for column, dtype in column_types.items()
-    }
-    if not per_column and plots:
-        for plot in plots:
-            column = plot.get("column") or "colonne"
-            per_column[column] = _local_column_text(column, {"profile": {"dtype": ""}, "graph_types": []})
-    intro = "Rapport généré sans IA avancée. Les éléments principaux restent disponibles."
+    column_types = (analysis_results or {}).get("column_types", {}) or {}
+    diagnostic_columns = {}
+    diagnostic = (analysis_results or {}).get("diagnostic")
+    if isinstance(diagnostic, dict):
+        diagnostic_columns = diagnostic.get("columns", {}) if isinstance(diagnostic.get("columns"), dict) else {}
 
+    per_column: Dict[str, Dict[str, str]] = {}
+    grouped_plots = _group_plots_by_column(plots)
+
+    def _profile_for(column: str) -> Dict[str, Any]:
+        profile = {}
+        if isinstance(diagnostic_columns, dict):
+            candidate = diagnostic_columns.get(column)
+            if isinstance(candidate, dict):
+                profile = candidate.copy()
+        if column in column_types and "column_type" not in profile:
+            profile["column_type"] = column_types[column]
+        return profile
+
+    if grouped_plots:
+        for column, column_plots in grouped_plots.items():
+            graph_types = sorted(
+                {
+                    plot.get("graph_type", "graphique")
+                    for plot in column_plots
+                    if plot.get("graph_type")
+                }
+            )
+            per_column[column] = _local_column_text(
+                column,
+                {
+                    "profile": _profile_for(column),
+                    "graph_types": graph_types,
+                    "issues": _column_issues(column, analysis_results),
+                },
+            )
+    else:
+        for column, dtype in column_types.items():
+            profile = _profile_for(column)
+            if not profile:
+                profile = {"column_type": dtype}
+            per_column[column] = _local_column_text(
+                column,
+                {
+                    "profile": profile,
+                    "graph_types": [],
+                    "issues": _column_issues(column, analysis_results),
+                },
+            )
+
+    if not per_column:
+        per_column["dataset"] = {
+            "analysis": "Le dataset ne contient pas de colonnes exploitables, mais la structure reste disponible.",
+            "insights": "Chargez un fichier avec davantage de colonnes numériques ou catégorielles pour enrichir le rapport.",
+            "anomalies": "Aucune anomalie détectée sur l'échantillon disponible.",
+        }
+
+    intro = "Rapport généré sans IA avancée. Les éléments principaux restent disponibles."
     summary = "Conclusion : exploitez les graphiques pour approfondir les tendances identifiées."
     return {
         "global_intro": intro,

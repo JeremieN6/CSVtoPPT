@@ -98,7 +98,7 @@
                   <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 16V4m0 12 4-4m-4 4-4-4m-2 8h12" />
                 </svg>
                 <div>
-                  <p class="font-semibold">Présentation prête</p>
+                  <p class="font-semibold">Votre présentation est prête 🎉</p>
                   <p class="text-sm text-emerald-700 dark:text-emerald-200">Téléchargez le PPTX généré automatiquement.</p>
                 </div>
               </div>
@@ -107,7 +107,7 @@
                 :href="downloadUrl"
                 :download="downloadFileName"
               >
-                Télécharger le PPT généré
+                Télécharger le PPT
               </a>
             </div>
 
@@ -132,12 +132,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000
 const AUTH_TOKEN_KEY = 'access_token'
 
 const selectedFile = ref(null)
-const reportTitle = ref('Rapport automatique')
+const reportTitle = ref('Rapport - Présentation du jour')
 const theme = ref('corporate')
 const isLoading = ref(false)
 const errorMessage = ref('')
 const downloadUrl = ref('')
-const downloadFileName = ref('rapport-automatique.pptx')
+const downloadFileName = ref('rapport-presentation-du-jour.pptx')
 const warnings = ref([])
 
 const canGenerate = computed(() => Boolean(selectedFile.value) && !isLoading.value)
@@ -162,7 +162,7 @@ const sanitizeFileName = (value) =>
     .normalize('NFD')
     .replace(/[^a-z0-9\s-]/g, '')
     .trim()
-    .replace(/\s+/g, '-') || 'rapport-automatique'
+    .replace(/\s+/g, '-') || 'rapport-presentation-du-jour'
 
 const generatePresentation = async () => {
   if (!selectedFile.value || isLoading.value) {
@@ -182,7 +182,7 @@ const generatePresentation = async () => {
 
   const formData = new FormData()
   formData.append('file', selectedFile.value)
-  formData.append('title', reportTitle.value || 'Rapport automatique')
+  formData.append('title', reportTitle.value || 'Rapport - Présentation du jour')
   formData.append('theme', theme.value)
 
   try {

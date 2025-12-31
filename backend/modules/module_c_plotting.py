@@ -105,7 +105,7 @@ def plot_linechart(
         raise ValueError("Données insuffisantes pour une courbe temporelle.")
 
     fig, ax = _init_figure()
-    ax.plot(cleaned.index, cleaned.values, color=DEFAULT_COLORS[0], linewidth=2)
+    ax.plot(cleaned.index, cleaned.values, color=DEFAULT_COLORS[0], linewidth=2, marker="o")
     ax.set_title(title or "Évolution")
     ax.set_xlabel("Temps")
     ax.set_ylabel(ylabel or (values.name or "Valeur"))

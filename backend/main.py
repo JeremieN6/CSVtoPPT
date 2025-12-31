@@ -44,7 +44,7 @@ def health() -> dict:
 async def generate_report(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    title: str = Form("Rapport automatique"),
+    title: str = Form("Rapport - Présentation du jour"),
     theme: str = Form("corporate"),
     use_ai: bool = Form(False),
     api_key: Optional[str] = Form(None),
@@ -100,7 +100,7 @@ async def generate_report(
 async def convert_dataset(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    title: str = Form("Rapport automatique"),
+    title: str = Form("Rapport - Présentation du jour"),
     theme: str = Form("corporate"),
     use_ai: bool = Form(False),
     api_key: Optional[str] = Form(None),
