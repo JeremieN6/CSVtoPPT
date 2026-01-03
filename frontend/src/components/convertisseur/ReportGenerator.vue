@@ -184,6 +184,7 @@ const generatePresentation = async () => {
   formData.append('file', selectedFile.value)
   formData.append('title', reportTitle.value || 'Rapport - Présentation du jour')
   formData.append('theme', theme.value)
+  formData.append('use_ai', 'true')
 
   try {
     const response = await fetch(`${API_BASE_URL}/convert`, {
@@ -195,6 +196,7 @@ const generatePresentation = async () => {
     })
 
     if (!response.ok) {
+      const status = response.status
       let errorDetail = 'Impossible de générer la présentation.'
       try {
         const payload = await response.json()
@@ -204,6 +206,14 @@ const generatePresentation = async () => {
       }
       if (response.status === 403) {
         errorDetail ||= 'Limite de plan atteinte.'
+      }
+      if (status === 401) {
+        window.localStorage.removeItem(AUTH_TOKEN_KEY)
+        window.localStorage.removeItem('user')
+        errorMessage.value = 'Session expirée, merci de vous reconnecter.'
+        window.location.href = '/connexion'
+        isLoading.value = false
+        return
       }
       throw new Error(errorDetail)
     }

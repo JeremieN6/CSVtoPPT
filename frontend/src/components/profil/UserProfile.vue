@@ -205,9 +205,10 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const router = useRouter()
 
 const userEmail = ref('')
 const userPlan = ref('free')
@@ -400,6 +401,7 @@ const fetchProfile = async () => {
         Authorization: `Bearer ${token}`,
       },
     })
+    const status = response.status
 
     if (!response.ok) {
       let message = 'Impossible de récupérer vos informations.'
@@ -410,6 +412,13 @@ const fetchProfile = async () => {
         }
       } catch (parseError) {
         console.warn('Unable to parse /auth/me error response', parseError)
+      }
+      if (status === 401) {
+        window.localStorage.removeItem('access_token')
+        window.localStorage.removeItem('user')
+        profileError.value = 'Session expirée. Merci de vous reconnecter.'
+        router.push('/connexion')
+        return
       }
       throw new Error(message)
     }

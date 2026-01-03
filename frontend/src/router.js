@@ -61,10 +61,11 @@ const routes = [
       description: 'Créez votre compte CSVtoPPT et commencez à convertir vos fichiers.'
     }
    },
-      { path: '/mon-compte', component: UserProfilePage,
+   { path: '/mon-compte', component: UserProfilePage,
     meta: {
       title: 'CSVtoPPT | Mon Compte',
-      description: 'Mon espace personnel.'
+      description: 'Mon espace personnel.',
+      requiresAuth: true,
     }
    },
    { path: '/success', component: Success,
@@ -84,6 +85,19 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes
+})
+
+router.beforeEach((to, from, next) => {
+  const requiresAuth = to.meta?.requiresAuth
+  if (!requiresAuth) {
+    return next()
+  }
+  const token = window.localStorage.getItem('access_token')
+  if (token) {
+    return next()
+  }
+  window.localStorage.removeItem('user')
+  return next({ path: '/connexion' })
 })
 
 export default router

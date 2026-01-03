@@ -1,10 +1,12 @@
 """FastAPI application exposing the CSV -> PPT pipeline."""
 from __future__ import annotations
 
+import os
 import traceback
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from dotenv import load_dotenv
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -35,6 +37,20 @@ app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(billing_router)
 app.include_router(billing_webhook_router)
 
+
+# Load environment variables early so pipeline can see OPENAI_API_KEY even on /generate-report
+BASE_DIR = Path(__file__).resolve().parents[1]
+for env_name in (".env.local", ".env"):
+    env_path = BASE_DIR / env_name
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
+
+_openai_env = os.getenv("OPENAI_API_KEY")
+if _openai_env:
+    print(f"[startup] OPENAI_API_KEY détectée (longueur={len(_openai_env)}, suffixe=***{_openai_env[-4:]})")
+else:
+    print("[startup] Aucune OPENAI_API_KEY trouvée dans l'environnement.")
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -46,7 +62,7 @@ async def generate_report(
     file: UploadFile = File(...),
     title: str = Form("Rapport - Présentation du jour"),
     theme: str = Form("corporate"),
-    use_ai: bool = Form(False),
+    use_ai: bool = Form(True),
     api_key: Optional[str] = Form(None),
 ) -> FileResponse:
     if not file.filename:

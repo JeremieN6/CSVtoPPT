@@ -15,6 +15,7 @@ FREE_MAX_ROWS = 5_000
 FREE_AI_STYLE = "light"
 FREE_TEMPLATE = "default"
 PRO_TEMPLATE = "pro_template"
+PRO_MAX_SLIDES = 14
 
 
 @dataclass
@@ -48,7 +49,7 @@ def apply_plan_parameters(user: Any) -> PlanParameters:
     plan = get_user_plan(user)
     if plan == "pro":
         return PlanParameters(
-            max_slides=None,
+            max_slides=PRO_MAX_SLIDES,
             ai_style="executive",
             watermark=False,
             template=PRO_TEMPLATE,

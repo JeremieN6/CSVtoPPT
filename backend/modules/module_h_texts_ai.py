@@ -36,6 +36,11 @@ DEFAULT_GENERIC_TEXT = (
 DEFAULT_STYLE = "normal"
 
 STYLE_PRESETS: Dict[str, Dict[str, str]] = {
+    "lite": {
+        "description": "Style très concis, 2-3 phrases max.",
+        "length": "2 à 3 phrases",
+        "focus": "1 tendance principale, 1 insight simple, pas de recommandations lourdes.",
+    },
     "short": {
         "description": "Ton ultra synthétique, bullet-friendly, 1 à 2 phrases max.",
         "length": "1 à 2 phrases",
@@ -49,7 +54,7 @@ STYLE_PRESETS: Dict[str, Dict[str, str]] = {
     "executive": {
         "description": "Ton consultant senior, 4 à 6 phrases avec recommandations.",
         "length": "4 à 6 phrases",
-        "focus": "Met en avant l'impact stratégique et les prochaines étapes.",
+        "focus": "Souligne tendances, anomalies et recommandation priorisée.",
     },
 }
 
@@ -88,11 +93,17 @@ def _ensure_client(api_key: Optional[str]) -> Optional[Any]:
 
 def _style_prompt(style_key: str) -> str:
     preset = STYLE_PRESETS.get(style_key, STYLE_PRESETS[DEFAULT_STYLE])
+    extra = {
+        "lite": "Fournis uniquement l'essentiel, pas de jargon, pas de listes à puces.",
+        "short": "Reste ultra synthétique.",
+        "normal": "Reste factuel et utile.",
+        "executive": "Ajoute une recommandation priorisée quand pertinent.",
+    }.get(style_key, "")
     return (
-    "Tu es un analyste data senior.\n"
-    "Écris en français, ton professionnel.\n"
-    f"Style: {preset['description']} ({preset['length']}).\n"
-    f"Consigne: {preset['focus']} Ne mentionne jamais de données absentes."
+        "Tu es un analyste data senior.\n"
+        "Écris en français, ton professionnel.\n"
+        f"Style: {preset['description']} ({preset['length']}).\n"
+        f"Consigne: {preset['focus']} {extra} Ne mentionne jamais de données absentes."
     )
 
 
@@ -124,12 +135,18 @@ def _call_openai_json(
                 },
                 {"role": "user", "content": user_prompt},
             ],
+            response_format={"type": "json_object"},
         )
     except Exception as exc:  # pragma: no cover
         raise AIGenerationError(f"Échec OpenAI: {exc}") from exc
 
     content = (response.choices[0].message.content or "").strip()
     data = _safe_json_loads(content)
+
+    if not isinstance(data, dict):
+        fenced = content.strip("` ")
+        data = _safe_json_loads(fenced)
+
     if not isinstance(data, dict):
         raise AIGenerationError("Réponse OpenAI vide ou non JSON.")
     return data
@@ -327,6 +344,12 @@ def generate_column_text(
     prompt = (
         "Analyse exclusivement la colonne décrite par le JSON suivant.\n"
         "Écris en français, ton neutre professionnel.\n"
+        "Structure attendue :\n"
+        "- 'analysis' : 1 tendance ou fait marquant visible dans le graphique.\n"
+        "- 'insights' : 1 recommandation ou interprétation métier concise.\n"
+        "- 'anomalies' : cite 1 anomalie si déductible, sinon 'Aucune anomalie détectable'.\n"
+        "Quand des métriques sont fournies (unique_values, missing_percent, notable_values), cite-les explicitement pour étayer le propos.\n"
+        "Si aucune anomalie n'est évidente, propose un point de vigilance simple plutôt que de rester générique.\n"
         "Réponds en JSON avec les clés 'analysis', 'insights', 'anomalies'.\n"
         "N'invente aucune statistique.\n"
         f"JSON: {json.dumps(payload, ensure_ascii=False)}"
@@ -358,9 +381,9 @@ def generate_global_intro(
         style,
         prompt + "\nRéponds en JSON avec la clé unique 'text'.",
     )
-    if "text" not in response:
+    if "text" not in response or not str(response.get("text", "")).strip():
         raise AIGenerationError("Réponse JSON invalide pour l'introduction.")
-    return response["text"]
+    return str(response["text"]).strip()
 
 
 def generate_summary(
@@ -383,9 +406,9 @@ def generate_summary(
         "Réponds en JSON avec la clé unique 'text'."
     )
     response = _call_openai_json(client, config, style, prompt)
-    if "text" not in response:
+    if "text" not in response or not str(response.get("text", "")).strip():
         raise AIGenerationError("Réponse JSON invalide pour la synthèse.")
-    return response["text"]
+    return str(response["text"]).strip()
 
 
 def generate_correlation_text(

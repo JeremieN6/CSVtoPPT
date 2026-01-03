@@ -104,17 +104,28 @@ def pipeline_run(
                 f"{trimmed} graphique(s) ont été exclus pour respecter la limite de {plan_params.get('max_slides')} slides."
             )
 
-        text_style = plan_params.get("ai_style") or additional_options.get("text_style") or "normal"
-        
-        # Pro plan gets AI-powered texts, Starter gets improved fallback
-        use_ai_texts = plan_params.get("ai_style") == "executive" and use_ai and api_key
-        
+        text_style = plan_params.get("ai_style") or additional_options.get("text_style") or "lite"
+
+        env_api_key = api_key or os.getenv("OPENAI_API_KEY")
+        auto_enable_ai = bool(env_api_key)
+
+        force_fallback = bool(plan_params.get("force_fallback") or additional_options.get("force_fallback"))
+        use_ai_texts = False
+
+        if force_fallback:
+            warnings.append("Mode fallback texte forcé : génération sans IA avancée.")
+        elif auto_enable_ai:
+            # Si une clé est présente, on active systématiquement l'IA (quel que soit le style)
+            use_ai_texts = True
+        else:
+            warnings.append("Clé OpenAI absente : texte généré en mode fallback simplifié.")
+
         texts_ai = _generate_texts_with_module_h(
             analysis,
             plots,
             style=text_style,
             use_ai=use_ai_texts,
-            api_key=api_key if use_ai_texts else None,
+            api_key=api_key if api_key and use_ai_texts else None,
         )
         texts_for_ppt = _prepare_texts_for_presentation(texts_ai, plots)
 
@@ -183,10 +194,11 @@ def _generate_texts_with_module_h(
     env_var = "OPENAI_API_KEY"
     previous_value = os.environ.get(env_var)
     try:
-        if api_key and use_ai:
-            os.environ[env_var] = api_key
-        elif not use_ai:
+        if not use_ai:
             os.environ.pop(env_var, None)
+            return generate_texts_ai(analysis, viz_plan, style=style)
+        if api_key:
+            os.environ[env_var] = api_key
         # Sinon : on laisse la variable telle quelle pour utiliser une clé déjà fournie.
         return generate_texts_ai(analysis, viz_plan, style=style)
     finally:
@@ -241,8 +253,10 @@ def _prepare_texts_for_presentation(
             }
         )
     conclusion = texts_ai.get("global_summary") if isinstance(texts_ai, dict) else None
-    if not conclusion:
+    if not isinstance(conclusion, str) or not conclusion.strip():
         conclusion = texts_ai.get("global_intro") if isinstance(texts_ai, dict) else None
+    if not isinstance(conclusion, str) or not conclusion.strip():
+        conclusion = "Synthèse indisponible (génération IA)."
     return {
         "analyses": analyses,
         "conclusion": conclusion or "Synthèse indisponible.",
