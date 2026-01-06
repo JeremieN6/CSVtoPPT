@@ -43,9 +43,15 @@
           <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 sm:text-base">
             {{ trendHelperText }}
           </p>
-          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 sm:text-base">
-            {{ usageSubtitle }}
-          </p>
+          <div class="mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 sm:text-base">
+            <span>{{ usageSubtitle }}</span>
+            <div class="relative group inline-flex">
+              <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[11px] font-semibold text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-200">?</span>
+              <div class="invisible absolute left-1/2 z-20 mt-2 w-64 -translate-x-1/2 rounded-lg bg-gray-900 px-3 py-2 text-[11px] font-medium text-white opacity-0 shadow-lg transition duration-150 group-hover:visible group-hover:opacity-100 dark:bg-gray-800">
+                Les quotas Free permettent de tester l’outil. Le plan Pro supprime ces limites et finance l’infrastructure IA.
+              </div>
+            </div>
+          </div>
           <div v-if="hasFiniteLimit" class="mt-4 space-y-2">
             <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
               <span>0</span>
