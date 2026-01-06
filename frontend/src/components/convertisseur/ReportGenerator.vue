@@ -121,6 +121,64 @@
         </div>
       </div>
     </div>
+
+    <!-- Toast quota (free plan) -->
+    <transition name="fade">
+      <div
+        v-if="quotaToast.visible"
+        class="fixed top-4 right-4 z-50 w-full max-w-sm rounded-xl border border-blue-200 bg-white/95 p-4 shadow-xl backdrop-blur dark:border-blue-900/50 dark:bg-slate-900/95"
+      >
+        <div class="flex items-start gap-3">
+          <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100">⚡</span>
+          <div class="flex-1 space-y-1 text-sm text-gray-800 dark:text-gray-100">
+            <p class="font-semibold">Limite gratuite</p>
+            <p>{{ quotaToast.message }}</p>
+            <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
+              <a class="font-semibold text-blue-700 underline dark:text-blue-300" href="/inscription">Passer Pro</a>
+              <span aria-hidden="true">·</span>
+              <a class="font-semibold text-gray-700 underline dark:text-gray-200" href="/profil">Voir mon quota</a>
+            </div>
+          </div>
+          <button class="text-gray-400 transition hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" @click="hideQuotaToast" aria-label="Fermer la notification">
+            ✕
+          </button>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Modal quota atteint -->
+    <transition name="fade">
+      <div v-if="showQuotaModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+          <div class="mb-4 flex items-start gap-3">
+            <div class="mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-100">🚫</div>
+            <div class="space-y-1">
+              <p class="text-lg font-semibold text-gray-900 dark:text-white">Quota atteint</p>
+              <p class="text-sm text-gray-700 dark:text-gray-200">{{ quotaModalMessage }}</p>
+              <p v-if="quotaCounts.limit" class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {{ quotaCounts.used }} / {{ quotaCounts.limit }} conversions utilisées ce mois-ci.
+              </p>
+              <p class="text-sm text-gray-600 dark:text-gray-300">Passez au plan Pro pour continuer sans limite.</p>
+            </div>
+          </div>
+          <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <a
+              href="/inscription"
+              class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600 sm:w-auto"
+            >
+              Passer Pro
+            </a>
+            <a
+              href="/profil"
+              class="inline-flex w-full items-center justify-center rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800 sm:w-auto"
+              @click="showQuotaModal = false"
+            >
+              Voir mon quota
+            </a>
+          </div>
+        </div>
+      </div>
+    </transition>
   </section>
 </template>
 
@@ -130,6 +188,7 @@ import FileUploader from './FileUploader.vue'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 const AUTH_TOKEN_KEY = 'access_token'
+const PLAN_LIMITS = { free: 10 }
 
 const selectedFile = ref(null)
 const reportTitle = ref('Rapport - Présentation du jour')
@@ -139,6 +198,11 @@ const errorMessage = ref('')
 const downloadUrl = ref('')
 const downloadFileName = ref('rapport-presentation-du-jour.pptx')
 const warnings = ref([])
+const showQuotaModal = ref(false)
+const quotaModalMessage = ref('Limite atteinte sur votre plan actuel.')
+const quotaCounts = ref({ used: null, limit: null })
+const quotaToast = ref({ visible: false, message: '' })
+let quotaToastTimer = null
 
 const canGenerate = computed(() => Boolean(selectedFile.value) && !isLoading.value)
 
@@ -204,8 +268,13 @@ const generatePresentation = async () => {
       } catch (err) {
         console.error('Erreur parse JSON', err)
       }
-      if (response.status === 403) {
-        errorDetail ||= 'Limite de plan atteinte.'
+      if (status === 403) {
+        const parsed = parseQuotaDetail(errorDetail)
+        quotaCounts.value = parsed
+        quotaModalMessage.value = errorDetail || 'Limite atteinte sur votre plan actuel.'
+        showQuotaModal.value = true
+        isLoading.value = false
+        return
       }
       if (status === 401) {
         window.localStorage.removeItem(AUTH_TOKEN_KEY)
@@ -229,6 +298,8 @@ const generatePresentation = async () => {
     const blob = await response.blob()
     downloadFileName.value = `${sanitizeFileName(reportTitle.value)}.pptx`
     downloadUrl.value = URL.createObjectURL(blob)
+
+    await refreshUsageSnapshotAndToast()
   } catch (error) {
     errorMessage.value = error?.message || 'Erreur inconnue lors de la génération.'
   } finally {
@@ -238,5 +309,66 @@ const generatePresentation = async () => {
 
 onBeforeUnmount(() => {
   resetDownload()
+  hideQuotaToast()
 })
+
+const parseQuotaDetail = (detail) => {
+  const match = typeof detail === 'string' ? detail.match(/(\d+)\s*\/\s*(\d+)/) : null
+  if (match) {
+    const used = Number(match[1])
+    const limit = Number(match[2])
+    return { used, limit }
+  }
+  return { used: null, limit: null }
+}
+
+const showQuotaToast = (message) => {
+  quotaToast.value = { visible: true, message }
+  if (quotaToastTimer) {
+    clearTimeout(quotaToastTimer)
+  }
+  quotaToastTimer = setTimeout(() => {
+    quotaToast.value.visible = false
+  }, 6000)
+}
+
+const hideQuotaToast = () => {
+  quotaToast.value.visible = false
+  if (quotaToastTimer) {
+    clearTimeout(quotaToastTimer)
+    quotaToastTimer = null
+  }
+}
+
+const refreshUsageSnapshotAndToast = async () => {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+  if (!token) return
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    if (data?.plan) {
+      const plan = data.plan
+      const limit = PLAN_LIMITS[plan]
+      if (plan === 'free' && Number.isFinite(limit)) {
+        const used = Number(data.conversions_this_month ?? 0)
+        const remaining = Math.max(0, limit - used)
+        const msg = remaining > 0
+          ? `Il vous reste ${remaining} conversion${remaining > 1 ? 's' : ''} sur ${limit} ce mois-ci.`
+          : `Vous avez atteint ${used}/${limit} conversions ce mois-ci. Passez en Pro pour continuer.`
+        showQuotaToast(msg)
+      }
+    }
+    try {
+      localStorage.setItem('user', JSON.stringify(data))
+    } catch (err) {
+      console.warn('Impossible de stocker le snapshot utilisateur', err)
+    }
+  } catch (err) {
+    console.warn('Snapshot usage échoué', err)
+  }
+}
 </script>
