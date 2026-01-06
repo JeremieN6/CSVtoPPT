@@ -173,8 +173,8 @@ def create_graph_slide(
         text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
     text = text_meta.get("text") or DEFAULT_FALLBACK_TEXT
-    text_box_height = Inches(1.8)
-    text_box_top = height - text_box_height - Inches(0.5)
+    text_box_height = Inches(2.4)
+    text_box_top = height - text_box_height - Inches(0.35)
 
     if theme_cfg.get("text_box_position") == "side":
         text_box = slide.shapes.add_textbox(
@@ -185,9 +185,9 @@ def create_graph_slide(
         )
     else:
         text_box = slide.shapes.add_textbox(
-            left=Inches(0.75),
+            left=Inches(0.7),
             top=text_box_top,
-            width=width - Inches(1.5),
+            width=width - Inches(1.4),
             height=text_box_height,
         )
 
@@ -198,8 +198,8 @@ def create_graph_slide(
     frame.margin_left = Pt(6)
     frame.margin_right = Pt(6)
     paragraph = frame.paragraphs[0]
-    paragraph.text = _truncate_text(text, 650)
-    paragraph.font.size = Pt(16)
+    paragraph.text = _truncate_text(text, 900)
+    paragraph.font.size = Pt(15)
     paragraph.font.name = theme_cfg["body_font"]
     paragraph.font.color.rgb = _rgb(theme_cfg["text"] if theme_cfg["name"] != "dark" else "FFFFFF")
 

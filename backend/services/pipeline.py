@@ -1,6 +1,8 @@
 """High-level pipeline orchestrating Modules A through E."""
 from __future__ import annotations
 
+import ast
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -240,7 +242,6 @@ def _prepare_texts_for_presentation(
         raw_segments = [
             column_text.get("analysis"),
             column_text.get("insights"),
-            column_text.get("anomalies"),
         ]
         segments = _dedupe_segments(raw_segments)
         text = " ".join(segments)
@@ -257,7 +258,55 @@ def _prepare_texts_for_presentation(
         conclusion = texts_ai.get("global_intro") if isinstance(texts_ai, dict) else None
     if not isinstance(conclusion, str) or not conclusion.strip():
         conclusion = "Synthèse indisponible (génération IA)."
+    normalized_conclusion = _normalize_conclusion_text(conclusion)
+    if not normalized_conclusion:
+        normalized_conclusion = "Synthèse indisponible (génération IA)."
     return {
         "analyses": analyses,
-        "conclusion": conclusion or "Synthèse indisponible.",
+        "conclusion": normalized_conclusion,
     }
+
+
+def _normalize_conclusion_text(conclusion: Any) -> str:
+    if isinstance(conclusion, dict):
+        return _format_conclusion_dict(conclusion)
+    if isinstance(conclusion, str):
+        text = conclusion.strip()
+        if not text:
+            return ""
+        for loader in (json.loads, ast.literal_eval):
+            try:
+                parsed = loader(text)
+            except Exception:
+                continue
+            if isinstance(parsed, dict):
+                formatted = _format_conclusion_dict(parsed)
+                if formatted:
+                    return formatted
+        return text
+    return ""
+
+
+def _format_conclusion_dict(data: Dict[str, Any]) -> str:
+    if not isinstance(data, dict):
+        return ""
+
+    parts: List[str] = []
+
+    perimeter = data.get("rappel_perimetre") or data.get("perimetre") or data.get("scope")
+    if perimeter:
+        parts.append(str(perimeter).strip())
+
+    teachings = data.get("enseignements") or data.get("insights") or data.get("points")
+    if isinstance(teachings, (list, tuple)):
+        lessons = [str(item).strip() for item in teachings if str(item).strip()]
+        if lessons:
+            parts.append(" ".join(lessons))
+    elif isinstance(teachings, str) and teachings.strip():
+        parts.append(teachings.strip())
+
+    next_step = data.get("prochaine_etape") or data.get("next_step") or data.get("recommendation")
+    if next_step:
+        parts.append(str(next_step).strip())
+
+    return "\n\n".join(part for part in parts if part).strip()

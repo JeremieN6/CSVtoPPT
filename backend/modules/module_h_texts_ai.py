@@ -309,17 +309,10 @@ def _local_column_text(column: str, metadata: Dict[str, Any]) -> Dict[str, str]:
     if formatted_values:
         insights_parts.append(f"Valeurs mises en avant : {formatted_values}.")
 
-    issues = metadata.get("issues") or []
-    if issues:
-        labels = ", ".join(_friendly_issue_name(issue) for issue in issues)
-        anomalies = f"Points de vigilance : {labels}."
-    else:
-        anomalies = "Aucun signal faible particulier n'a été détecté pour cette colonne."
-
     return {
         "analysis": " ".join(analysis_parts),
         "insights": " ".join(insights_parts),
-        "anomalies": anomalies,
+        "anomalies": "",
     }
 
 
@@ -342,25 +335,23 @@ def generate_column_text(
         "missing_percent": column_meta.get("missing_percent"),
     }
     prompt = (
-        "Analyse exclusivement la colonne décrite par le JSON suivant.\n"
-        "Écris en français, ton neutre professionnel.\n"
+        "Analyse uniquement la colonne décrite par le JSON ci-dessous, en te basant sur ce que le graphique montre.\n"
+        "Écris en français, ton neutre professionnel, sans liste à puces.\n"
         "Structure attendue :\n"
-        "- 'analysis' : 1 tendance ou fait marquant visible dans le graphique.\n"
-        "- 'insights' : 1 recommandation ou interprétation métier concise.\n"
-        "- 'anomalies' : cite 1 anomalie si déductible, sinon 'Aucune anomalie détectable'.\n"
-        "Quand des métriques sont fournies (unique_values, missing_percent, notable_values), cite-les explicitement pour étayer le propos.\n"
-        "Si aucune anomalie n'est évidente, propose un point de vigilance simple plutôt que de rester générique.\n"
-        "Réponds en JSON avec les clés 'analysis', 'insights', 'anomalies'.\n"
-        "N'invente aucune statistique.\n"
+        "- 'analysis' : 2 à 3 phrases descriptives du graphique (répartition, ordre des catégories, évolution, valeurs dominantes ou contrastes). Pas de recommandations.\n"
+        "- 'insights' : 1 à 2 phrases d'interprétation métier directement liées aux observations (impact ou opportunité). Pas de formulations génériques ni de 'il est recommandé'.\n"
+        "Interdictions : ne jamais écrire 'Aucune anomalie détectable', 'aucune anomalie', ni de phrases vides.\n"
+        "Quand des métriques sont fournies (unique_values, missing_percent, notable_values), cite-les pour appuyer l'analyse, sans inventer de chiffres.\n"
+        "Réponds en JSON avec uniquement les clés 'analysis' et 'insights'.\n"
         f"JSON: {json.dumps(payload, ensure_ascii=False)}"
     )
     response = _call_openai_json(client, config, style, prompt)
-    if not all(key in response for key in ("analysis", "insights", "anomalies")):
+    if not all(key in response for key in ("analysis", "insights")):
         raise AIGenerationError("Format JSON inattendu pour l'analyse de colonne.")
     return {
         "analysis": response.get("analysis") or DEFAULT_GENERIC_TEXT,
         "insights": response.get("insights") or DEFAULT_GENERIC_TEXT,
-        "anomalies": response.get("anomalies") or "",
+        "anomalies": "",
     }
 
 
