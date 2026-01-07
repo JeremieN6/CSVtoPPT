@@ -161,6 +161,27 @@
               <p class="text-sm text-gray-600 dark:text-gray-300">Passez au plan Pro pour continuer sans limite.</p>
             </div>
           </div>
+          <div class="mb-4 grid gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-100 sm:grid-cols-2">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-300">🧠 IA Light (Free)</p>
+              <ul class="mt-2 space-y-1">
+                <li>Texte descriptif simple</li>
+                <li>Résumés courts</li>
+                <li>Pas d’analyse croisée</li>
+                <li>Style neutre</li>
+              </ul>
+            </div>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">🚀 IA Pro</p>
+              <ul class="mt-2 space-y-1">
+                <li>Analyses intelligentes</li>
+                <li>Corrélations & insights</li>
+                <li>Texte orienté décision</li>
+                <li>Slides prêtes pour présentation client/comité</li>
+                <li class="text-[13px] font-medium">IA optimisée pour un usage professionnel</li>
+              </ul>
+            </div>
+          </div>
           <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <a
               href="/inscription"

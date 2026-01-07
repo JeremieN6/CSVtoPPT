@@ -171,6 +171,31 @@
                 </article>
             </div>
         </div>
+
+        <!-- IA Light vs IA Pro -->
+        <div class="mx-auto max-w-4xl rounded-3xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/70">
+            <div class="grid gap-6 md:grid-cols-2">
+                <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-300">🧠 IA Light (Free)</p>
+                    <ul class="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                        <li>Texte descriptif simple</li>
+                        <li>Résumés courts</li>
+                        <li>Pas d’analyse croisée</li>
+                        <li>Style neutre</li>
+                    </ul>
+                </div>
+                <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm dark:border-blue-800/60 dark:bg-blue-900/30">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">🚀 IA Pro</p>
+                    <ul class="mt-2 space-y-1 text-sm text-blue-900 dark:text-blue-100">
+                        <li>Analyses intelligentes</li>
+                        <li>Corrélations & insights</li>
+                        <li>Texte orienté décision</li>
+                        <li>Slides prêtes pour comité/client</li>
+                        <li class="text-[13px] font-medium">IA optimisée pour un usage professionnel</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </section>
 </template>
 
