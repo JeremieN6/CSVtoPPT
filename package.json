@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "generate:sitemap": "node generate-sitemap.js",
-    "build:canonical": "vite build"
+    "build:canonical": "vite build",
+    "build:deploy": "npm run build && node ./.script/copy-dist.js"
   },
   "dependencies": {
     "dotenv": "^16.5.0",
