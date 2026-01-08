@@ -7,7 +7,7 @@
         <p class="mb-4 text-3xl tracking-tight font-bold text-gray-900 md:text-4xl dark:text-white">Un problème est
           survenu lors de l'abonnement</p>
         <p class="mb-4 text-lg font-light text-gray-500 dark:text-gray-400">Veuillez <a
-            href="/calculateur" class="text-blue-500 hover:text-blue-600">réessayer</a> ou <a
+            href="/convertisseur" class="text-blue-500 hover:text-blue-600">réessayer</a> ou <a
             href="mailto:contact@jeremiecode.fr" class="text-blue-500 hover:text-blue-600">contacter le support</a>.</p>
         <a href="/"
           class="inline-flex text-white bg-blue-600 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:focus:ring-blue-900 my-4">Retour

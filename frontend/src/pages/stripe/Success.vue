@@ -28,9 +28,9 @@ onMounted(async () => {
     const data = await response.json()
     if (data.token) {
       sessionStorage.setItem('premiumToken', data.token)
-      // Redirige vers le calculateur après 1s
+      // Redirige vers le convertisseur après 1s
       setTimeout(() => {
-        router.push('/calculateur')
+        router.push('/convertisseur')
       }, 1000)
     } else {
       error.value = "Erreur lors de la génération du token. Contactez le support."

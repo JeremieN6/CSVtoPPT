@@ -22,7 +22,7 @@
           </ul>
           <div class="flex flex-wrap gap-4">
             <RouterLink
-              to="/calculateur"
+              to="/convertisseur"
               class="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-blue-900 shadow-lg transition hover:-translate-y-0.5"
             >
               Accéder au convertisseur
@@ -80,7 +80,7 @@ const teaserPoints = [
   {
     id: '01',
     title: 'Glissez votre CSV/XLSX',
-    description: 'Aucun envoi visible ici : la zone de drop se trouve sur la page calculateur, avec les mêmes contrôles.'
+    description: 'Aucun envoi visible ici : la zone de drop se trouve sur la page convertisseur, avec les mêmes contrôles.'
   },
   {
     id: '02',

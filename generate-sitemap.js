@@ -2,21 +2,23 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-// import { posts } from './src/assets/data/articles.json'
-import posts from './src/assets/data/articles.json' assert { type: 'json' };
 
 // pour __dirname en ESM :
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const BASE_URL = 'https://jeremiecode.fr/projet/labo/babydose'
+// Charger les articles depuis le bon chemin (frontend)
+const articlesPath = path.resolve(__dirname, 'frontend/src/assets/data/articles.json')
+const posts = JSON.parse(fs.readFileSync(articlesPath, 'utf-8'))
+
+const BASE_URL = 'https://csvtoppt.sassify.fr'
 
 // 📅 Date du jour au format YYYY-MM-DD
 const today = new Date().toISOString().split('T')[0]
 
 const routes = [
   '/',
-  '/calculateur',
+  '/convertisseur',
   '/fonctionnalites',
   '/blog',
   '/politique-de-confidentialite'
@@ -47,5 +49,5 @@ ${allRoutes.map(({ path, lastmod }) => `
   </url>`).join('\n')}
 </urlset>
 `
-fs.writeFileSync(path.resolve(__dirname, 'public/sitemap.xml'), xml)
+fs.writeFileSync(path.resolve(__dirname, 'frontend/public/sitemap.xml'), xml)
 console.log('✅ sitemap.xml généré avec succès')
