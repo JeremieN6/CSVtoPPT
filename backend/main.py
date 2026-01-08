@@ -2,18 +2,6 @@
 from __future__ import annotations
 
 import os
-
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-
-# Ensuite imports normaux
-import matplotlib
-matplotlib.use("Agg")  # si tu es sur serveur sans GUI
-import matplotlib.pyplot as plt
-
 import traceback
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -23,6 +11,33 @@ from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+
+
+def _load_env() -> None:
+    """Load environment with production priority then local fallbacks."""
+
+    for env_name in (".env.production", ".env.local", ".env"):
+        env_path = BASE_DIR / env_name
+        if env_path.exists():
+            load_dotenv(env_path, override=True)
+            break
+
+
+_load_env()
+
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+
+import matplotlib
+
+matplotlib.use("Agg")  # si tu es sur serveur sans GUI
+import matplotlib.pyplot as plt
 
 from services.pipeline import PipelineError, pipeline_run, run_pipeline
 from services import utils

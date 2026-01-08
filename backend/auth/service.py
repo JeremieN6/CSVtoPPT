@@ -16,10 +16,19 @@ from auth.models import User
 from auth.schemas import UserCreate
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-for env_name in (".env.local", ".env"):
-    env_path = BASE_DIR / env_name
-    if env_path.exists():
-        load_dotenv(env_path, override=False)
+
+
+def _load_env() -> None:
+    """Load env with production priority; do not override already-set values."""
+
+    for env_name in (".env.production", ".env.local", ".env"):
+        env_path = BASE_DIR / env_name
+        if env_path.exists():
+            load_dotenv(env_path, override=False)
+            break
+
+
+_load_env()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
