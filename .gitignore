@@ -68,6 +68,10 @@ backend/__pycache__/
 backend/**/__pycache__/
 backend/**/*.pyc
 
+# Allow committing built frontend served from backend/static
+!backend/static/
+!backend/static/**
+
 # Temporary files
 *.tmp
 *.temp

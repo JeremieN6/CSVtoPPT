@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://temps-cuisson-air-fryer.netlify.app/sitemap.xml
