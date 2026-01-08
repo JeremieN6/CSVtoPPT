@@ -1,6 +1,8 @@
 """FastAPI router exposing authenticated billing endpoints."""
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -25,9 +27,9 @@ class CheckoutResponse(BaseModel):
 
 class BillingStatusResponse(BaseModel):
     plan: str
-    stripe_customer_id: str | None
+    stripe_customer_id: Optional[str]
     conversions_this_month: int
-    last_reset_date: str | None
+    last_reset_date: Optional[str]
 
 
 @router.post("/checkout", response_model=CheckoutResponse)
