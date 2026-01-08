@@ -7,7 +7,6 @@ python-pptx==1.0.2
 openpyxl==3.1.5
 bcrypt
 python-jose[cryptography]
-psycopg2
 psycopg2-binary==2.9.11
 sqlalchemy
 alembic
