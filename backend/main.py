@@ -2,6 +2,18 @@
 from __future__ import annotations
 
 import os
+
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+
+# Ensuite imports normaux
+import matplotlib
+matplotlib.use("Agg")  # si tu es sur serveur sans GUI
+import matplotlib.pyplot as plt
+
 import traceback
 from pathlib import Path
 from typing import Any, Dict, Optional
