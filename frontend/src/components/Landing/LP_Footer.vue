@@ -5,7 +5,7 @@
         <RouterLink to="/" class="flex justify-center items-center text-2xl font-semibold text-gray-900 hover:text-gray-600 dark:text-white dark:hover:text-gray-300">
             📃 CSVtoPPT™ 
         </RouterLink>
-        <p class="my-6 text-gray-500 dark:text-gray-400">CSVtoPPT™ – votre allié pour bien doser.</p>
+        <p class="my-6 text-gray-500 dark:text-gray-400">CSVtoPPT™ - pour transformer vos données en présentations percutantes.</p>
         <ul class="flex flex-wrap justify-center items-center mb-6 text-gray-900 dark:text-white">
             <li>
                 <RouterLink to="/" class="mr-4 hover:underline md:mr-6 ">Accueil</RouterLink>

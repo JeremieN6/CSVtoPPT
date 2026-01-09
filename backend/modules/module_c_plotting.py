@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
 import matplotlib
-matplotlib.use("Agg")  # backend non graphique (serveur)
+matplotlib.use("Agg")  # backend non graphique (serveur mutualisé)
 
 import matplotlib.pyplot as plt
 import pandas as pd
