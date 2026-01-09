@@ -207,7 +207,13 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import FileUploader from './FileUploader.vue'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL
+  || (typeof window !== 'undefined'
+    && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://127.0.0.1:8000'
+      : '/api')
+).replace(/\/$/, '')
 const AUTH_TOKEN_KEY = 'access_token'
 const PLAN_LIMITS = { free: 10 }
 

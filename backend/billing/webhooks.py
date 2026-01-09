@@ -15,6 +15,12 @@ from . import service
 
 logger = logging.getLogger(__name__)
 
+# stripe.error module was removed in stripe>=10; fall back to the new location when needed.
+try:
+    from stripe.error import SignatureVerificationError  # type: ignore
+except ModuleNotFoundError:
+    from stripe import SignatureVerificationError  # type: ignore
+
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 if not STRIPE_WEBHOOK_SECRET:
@@ -39,7 +45,7 @@ async def handle_stripe_webhook(
     except ValueError as exc:
         logger.warning("Invalid payload for Stripe webhook: %s", exc)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payload invalide.") from exc
-    except stripe.error.SignatureVerificationError as exc:
+    except SignatureVerificationError as exc:
         logger.warning("Invalid Stripe signature: %s", exc)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signature Stripe invalide.") from exc
 

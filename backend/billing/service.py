@@ -13,16 +13,34 @@ from auth.models import User
 
 logger = logging.getLogger(__name__)
 
+# stripe.error module was removed in stripe>=10; fall back to the new location when needed.
+try:
+    from stripe.error import InvalidRequestError  # type: ignore
+except ModuleNotFoundError:
+    from stripe import InvalidRequestError  # type: ignore
+
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_PRICE_PRO_ID = os.getenv("STRIPE_PRICE_PRO_ID")
-DASHBOARD_URL = os.getenv("APP_DASHBOARD_URL", "http://localhost:5173/dashboard")
+
+# Frontend URLs (local fallback) so the same code works in prod and dev.
+FRONTEND_BASE_URL = (
+    os.getenv("APP_BASE_URL")
+    or os.getenv("APP_FRONTEND_URL")
+    or os.getenv("FRONTEND_URL")
+    or "http://localhost:5173"
+).rstrip("/")
+DASHBOARD_PATH = os.getenv("APP_DASHBOARD_PATH", "/mon-compte")
+if not DASHBOARD_PATH.startswith("/"):
+    DASHBOARD_PATH = f"/{DASHBOARD_PATH}"
+
+DASHBOARD_URL = os.getenv("APP_DASHBOARD_URL", f"{FRONTEND_BASE_URL}{DASHBOARD_PATH}")
 CHECKOUT_SUCCESS_URL = os.getenv(
     "STRIPE_CHECKOUT_SUCCESS_URL",
-    "http://localhost:5173/dashboard?checkout=success",
+    f"{DASHBOARD_URL}?checkout=success",
 )
 CHECKOUT_CANCEL_URL = os.getenv(
     "STRIPE_CHECKOUT_CANCEL_URL",
-    "http://localhost:5173/dashboard?checkout=cancel",
+    f"{DASHBOARD_URL}?checkout=cancel",
 )
 
 if not STRIPE_SECRET_KEY:
@@ -43,7 +61,13 @@ def ensure_stripe_customer(user: User, session: Session) -> str:
     """Return the Stripe customer id, creating one if necessary."""
 
     if user.stripe_customer_id:
-        return user.stripe_customer_id
+        # Validate that the customer still exists in the current Stripe mode (test/prod)
+        try:
+            stripe.Customer.retrieve(user.stripe_customer_id)
+            return user.stripe_customer_id
+        except InvalidRequestError as exc:  # e.g., "No such customer" when env mismatch
+            logger.warning("Stripe customer %s missing; recreating. %s", user.stripe_customer_id, exc)
+            user.stripe_customer_id = None
 
     if not STRIPE_SECRET_KEY:
         raise BillingError("Stripe n'est pas configuré côté serveur.")

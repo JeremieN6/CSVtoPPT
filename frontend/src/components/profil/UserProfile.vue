@@ -137,7 +137,11 @@
             <p v-if="billingPortalError" class="text-sm text-red-600 dark:text-red-300">{{ billingPortalError }}</p>
           </div>
         </div>
-        <button type="button" data-modal-target="accountInformationModal2" data-modal-toggle="accountInformationModal2" class="inline-flex w-full items-center justify-center rounded-lg bg-primary-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-800 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800 sm:w-auto">
+        <button
+          type="button"
+          class="inline-flex w-full items-center justify-center rounded-lg bg-primary-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-800 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800 sm:w-auto"
+          @click="openProfileModal"
+        >
           <svg class="-ms-0.5 me-1.5 h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m14.304 4.844 2.852 2.852M7 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-4.5m2.409-9.91a2.017 2.017 0 0 1 0 2.853l-6.844 6.844L8 14l.713-3.565 6.844-6.844a2.015 2.015 0 0 1 2.852 0Z" />
           </svg>
@@ -146,12 +150,25 @@
       </div>
     </div>
 
-    <div id="accountInformationModal2" tabindex="-1" aria-hidden="true" class="max-h-auto fixed left-0 right-0 top-0 z-50 hidden h-[calc(100%-1rem)] max-h-full w-full items-center justify-center overflow-y-auto overflow-x-hidden antialiased md:inset-0">
+    <div
+      v-if="isProfileModalOpen"
+      id="accountInformationModal2"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      class="max-h-auto fixed left-0 right-0 top-0 z-50 flex h-[calc(100%-1rem)] max-h-full w-full items-center justify-center overflow-y-auto overflow-x-hidden bg-black/50 antialiased md:inset-0"
+      @keydown.esc.prevent="closeProfileModal"
+      @click.self="closeProfileModal"
+    >
       <div class="max-h-auto relative max-h-full w-full max-w-lg p-4">
         <div class="relative rounded-lg bg-white shadow dark:bg-gray-800">
           <div class="flex items-center justify-between rounded-t border-b border-gray-200 p-4 dark:border-gray-700 md:p-5">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Modifier mes informations</h3>
-            <button type="button" class="ms-auto inline-flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white" data-modal-toggle="accountInformationModal2">
+            <button
+              type="button"
+              class="ms-auto inline-flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white"
+              @click="closeProfileModal"
+            >
               <svg class="h-3 w-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
               </svg>
@@ -198,7 +215,11 @@
                 </svg>
                 Sauvegarder
               </button>
-              <button type="button" data-modal-toggle="accountInformationModal2" class="me-2 rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-900 hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:outline-none focus:ring-4 focus:ring-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white dark:focus:ring-gray-700">
+              <button
+                type="button"
+                class="me-2 rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-900 hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:outline-none focus:ring-4 focus:ring-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white dark:focus:ring-gray-700"
+                @click="closeProfileModal"
+              >
                 Annuler
               </button>
             </div>
@@ -213,7 +234,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL
+  || (typeof window !== 'undefined'
+    && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://127.0.0.1:8000'
+      : '/api')
+).replace(/\/$/, '')
 const router = useRouter()
 
 const userEmail = ref('')
@@ -223,6 +250,7 @@ const userProfile = ref(createEmptyProfile())
 const profileForm = ref(createEmptyProfile())
 const usageStats = ref(createEmptyUsage())
 const isSavingProfile = ref(false)
+const isProfileModalOpen = ref(false)
 const saveProfileError = ref('')
 const saveProfileMessage = ref('')
 const isPortalLoading = ref(false)
@@ -552,6 +580,16 @@ const safeJson = async (response) => {
     console.warn('Réponse non JSON', err)
     return null
   }
+}
+
+function openProfileModal() {
+  isProfileModalOpen.value = true
+  saveProfileError.value = ''
+  saveProfileMessage.value = ''
+}
+
+function closeProfileModal() {
+  isProfileModalOpen.value = false
 }
 
 onMounted(() => {
