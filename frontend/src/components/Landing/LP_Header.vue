@@ -58,14 +58,24 @@
                     <ul class="flex flex-col mt-4 font-medium lg:flex-row lg:space-x-8 lg:mt-0">
                         <li>
                             <RouterLink to="/"
-                                class="block py-2 pr-4 pl-3 text-gray-700 rounded bg-primary-700 lg:bg-transparent lg:text-primary-700 lg:p-0 dark:text-white"
+                                :class="[
+                                    'block py-2 pr-4 pl-3 rounded lg:p-0',
+                                    isActive('/')
+                                        ? 'bg-primary-700 text-white dark:text-white lg:bg-transparent lg:text-primary-700 lg:dark:text-primary-400'
+                                        : 'text-gray-700 dark:text-gray-300 lg:text-gray-700 lg:dark:text-gray-300'
+                                ]"
                                 aria-current="page"
                                 @click="closeMenu">Accueil</RouterLink>
                         </li>
                         <li v-for="link in navLinks" :key="link.href">
                             <a
                                 :href="link.href"
-                                class="block py-2 pr-4 pl-3 text-gray-700 border-b border-gray-100 hover:bg-gray-50 lg:hover:bg-transparent lg:border-0 lg:hover:text-primary-700 lg:p-0 dark:text-gray-400 lg:dark:hover:text-white dark:hover:bg-gray-700 dark:hover:text-white lg:dark:hover:bg-transparent dark:border-gray-700"
+                                :class="[
+                                    'block py-2 pr-4 pl-3 border-b border-gray-100 lg:border-0 lg:p-0',
+                                    isActive(link.href)
+                                        ? 'bg-primary-700 text-white dark:text-white lg:bg-transparent lg:text-primary-700 lg:dark:text-primary-400'
+                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 lg:hover:bg-transparent lg:hover:text-primary-700 lg:dark:hover:text-white'
+                                ]"
                                 @click="closeMenu"
                             >
                                 {{ link.label }}
@@ -90,18 +100,24 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 
 const AUTH_EVENT = 'csvtoppt-auth-changed'
 const CONTACT_EMAIL = 'contact@csvtoppt.com'
 const isMenuOpen = ref(false)
 const isAuthenticated = ref(false)
 const router = useRouter()
+const route = useRoute()
 const navLinks = [
     { href: '/convertisseur', label: 'Convertisseur' },
     { href: '/#benefits', label: 'Bénéfices' },
     { href: '/#faq', label: 'FAQ' },
 ]
+
+const isActive = (href) => {
+    const fullPath = `${route.path}${route.hash || ''}`
+    return fullPath === href || route.path === href
+}
 
 const syncAuthState = () => {
     if (typeof window === 'undefined') {

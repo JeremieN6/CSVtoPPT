@@ -22,7 +22,7 @@ except ModuleNotFoundError:
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_PRICE_PRO_ID = os.getenv("STRIPE_PRICE_PRO_ID")
 
-# Frontend URLs (local fallback) so the same code works in prod and dev.
+# Frontend URLs (local fallback) so the same code works in prod and dev environnements.
 FRONTEND_BASE_URL = (
     os.getenv("APP_BASE_URL")
     or os.getenv("APP_FRONTEND_URL")

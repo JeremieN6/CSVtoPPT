@@ -10,8 +10,8 @@
             Convertissez vos CSV en présentations prêtes à présenter
           </h2>
           <p class="text-base text-gray-500 dark:text-gray-300">
-            Téléversez vos données (CSV ou XLSX) puis laissez notre pipeline générer automatiquement une présentation PowerPoint
-            structurée : analyses, graphiques et slides propres sont produits côté backend FastAPI.
+            Téléversez vos données (CSV ou XLSX) puis laissez le pipeline générer automatiquement une présentation PowerPoint
+            structurée : analyses, graphiques et slides propres sont produits côté backend.
           </p>
           <ul class="space-y-3 text-sm text-gray-600 dark:text-gray-300">
             <li class="flex items-start gap-3">

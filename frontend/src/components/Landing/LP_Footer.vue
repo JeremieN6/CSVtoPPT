@@ -23,7 +23,7 @@
                 <RouterLink to="/politique-de-confidentialite" class="mr-4 hover:underline md:mr-6 ">Politique de confidentialité</RouterLink>
             </li>
         </ul>
-        <span class="text-sm text-gray-500 sm:text-center dark:text-gray-400">© 2025 <a
+        <span class="text-sm text-gray-500 sm:text-center dark:text-gray-400">© 2026 <a
                 class="hover:underline ">CSVtoPPT™</a>. <br> <br> Site web réalisé avec 💖 par <a href="https://jeremiecode.fr" class="hover:underline hover:text-blue-500">SnapCode™ Agency</a> • All Rights Reserved. </span>
     </div>
 </footer>
