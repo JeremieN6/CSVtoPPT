@@ -84,7 +84,7 @@ import { useRouter } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
 const router = useRouter()
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
 const AUTH_EVENT = 'csvtoppt-auth-changed'
 const name = ref('')
 const email = ref('')

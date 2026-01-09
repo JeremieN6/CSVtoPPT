@@ -207,7 +207,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import FileUploader from './FileUploader.vue'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
 const AUTH_TOKEN_KEY = 'access_token'
 const PLAN_LIMITS = { free: 10 }
 
