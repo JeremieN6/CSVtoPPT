@@ -93,6 +93,19 @@
               </button>
             </div>
 
+            <div v-if="progressVisible" class="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/60">
+              <div class="flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-200">
+                <span>Conversion</span>
+                <span>{{ progressPercent }}%</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+                <div
+                  class="h-2 rounded-full bg-blue-600 transition-all duration-500 ease-out"
+                  :style="{ width: `${progressPercent}%` }"
+                />
+              </div>
+            </div>
+
             <div v-if="errorMessage" class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-100" role="alert">
               {{ errorMessage }}
             </div>
@@ -234,13 +247,17 @@ const errorMessage = ref('')
 const downloadUrl = ref('')
 const downloadFileName = ref('rapport-presentation-du-jour.pptx')
 const warnings = ref([])
+const progress = ref(0)
 const showQuotaModal = ref(false)
 const quotaModalMessage = ref('Limite atteinte sur votre plan actuel.')
 const quotaCounts = ref({ used: null, limit: null })
 const quotaToast = ref({ visible: false, message: '' })
 let quotaToastTimer = null
+let progressTimer = null
 
 const canGenerate = computed(() => Boolean(selectedFile.value) && !isLoading.value)
+const progressVisible = computed(() => isLoading.value || progress.value > 0)
+const progressPercent = computed(() => Math.min(100, Math.round(progress.value)))
 
 const resetDownload = () => {
   if (downloadUrl.value) {
@@ -282,6 +299,31 @@ const handleFileError = (message) => {
   showQuotaToast(message || 'Format non supporté. Choisissez un CSV/TSV/TXT ou un XLS/XLSX.', { persistent: true })
 }
 
+const startProgress = () => {
+  stopProgress(false)
+  progress.value = 12
+  progressTimer = window.setInterval(() => {
+    if (progress.value < 90) {
+      progress.value = Math.min(90, progress.value + 5 + Math.random() * 6)
+    }
+  }, 700)
+}
+
+const stopProgress = (success) => {
+  if (progressTimer) {
+    clearInterval(progressTimer)
+    progressTimer = null
+  }
+  if (success) {
+    progress.value = 100
+    window.setTimeout(() => {
+      progress.value = 0
+    }, 700)
+  } else {
+    progress.value = 0
+  }
+}
+
 const sanitizeFileName = (value) =>
   value
     .toLowerCase()
@@ -305,6 +347,9 @@ const generatePresentation = async () => {
   errorMessage.value = ''
   warnings.value = []
   resetDownload()
+  startProgress()
+
+  let operationSucceeded = false
 
   const formData = new FormData()
   formData.append('file', selectedFile.value)
@@ -375,15 +420,18 @@ const generatePresentation = async () => {
     downloadUrl.value = URL.createObjectURL(blob)
 
     await refreshUsageSnapshotAndToast()
+    operationSucceeded = true
   } catch (error) {
     errorMessage.value = error?.message || 'Erreur inconnue lors de la génération.'
   } finally {
+    stopProgress(operationSucceeded)
     isLoading.value = false
   }
 }
 
 onBeforeUnmount(() => {
   resetDownload()
+  stopProgress(false)
   hideQuotaToast()
 })
 
