@@ -68,6 +68,8 @@ app.include_router(billing_webhook_router)
 
 logger = logging.getLogger(__name__)
 
+MAX_CONVERSION_TIME = 160.0  # seconds
+
 
 # Load environment variables early so pipeline can see OPENAI_API_KEY even on /generate-report
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -192,6 +194,7 @@ async def convert_dataset(
             use_ai=use_ai,
             api_key=api_key,
             plan_params=enforcement.get("params"),
+            max_duration_seconds=MAX_CONVERSION_TIME,
         )
         ppt_path = pipeline_result["pptx_path"]
         warnings = pipeline_result.get("warnings") or []
@@ -223,6 +226,24 @@ async def convert_dataset(
             len(warnings),
         )
         return response
+    except TimeoutError as exc:
+        outcome = "timeout"
+        session.rollback()
+        _restore_usage_state(current_user, usage_snapshot)
+        if ppt_path:
+            utils.safe_delete_file(ppt_path)
+        logger.warning(
+            "convert_dataset timeout duration=%.2fs user=%s file=%s size_bytes=%s rows=%s",
+            time.perf_counter() - start_time,
+            getattr(current_user, "email", "unknown"),
+            file.filename,
+            file_size,
+            row_count,
+        )
+        raise HTTPException(
+            status_code=504,
+            detail="Votre fichier est trop complexe pour une conversion instantanée. Passez au plan Pro ou contactez-nous.",
+        ) from exc
     except HTTPException:
         outcome = "http_exception"
         session.rollback()

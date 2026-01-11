@@ -5,6 +5,7 @@ import ast
 import json
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -35,6 +36,7 @@ def run_pipeline(
     use_ai: bool = False,
     api_key: Optional[str] = None,
     additional_options: Optional[Dict[str, Any]] = None,
+    max_duration_seconds: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Execute the full CSV/XLSX -> PPT pipeline starting from a file path."""
 
@@ -52,6 +54,7 @@ def run_pipeline(
         use_ai=use_ai,
         api_key=api_key,
         additional_options=additional_options,
+        max_duration_seconds=max_duration_seconds,
     )
     
 def pipeline_run(
@@ -64,11 +67,18 @@ def pipeline_run(
     api_key: Optional[str] = None,
     plan_params: Optional[Dict[str, Any]] = None,
     additional_options: Optional[Dict[str, Any]] = None,
+    max_duration_seconds: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Execute the pipeline from an already loaded dataframe."""
 
     if df is None:
         raise PipelineError("Aucune donnée fournie au pipeline.")
+
+    start_time = time.perf_counter()
+
+    def _check_timeout() -> None:
+        if max_duration_seconds and (time.perf_counter() - start_time) > max_duration_seconds:
+            raise TimeoutError(f"Temps de conversion dépassé ({max_duration_seconds}s).")
 
     workspace = Path(tempfile.mkdtemp(prefix="pipeline_"))
     plots_dir = workspace / "plots"
@@ -80,9 +90,11 @@ def pipeline_run(
     additional_options = additional_options or {}
 
     try:
+        _check_timeout()
         analysis = analyze_dataset(df, diagnostic)
         analysis["diagnostic"] = diagnostic
 
+        _check_timeout()
         plot_result = generate_plots(df, analysis, str(plots_dir))
         warnings.extend(plot_result.get("errors", []))
         plots = plot_result.get("plots", [])
@@ -106,6 +118,7 @@ def pipeline_run(
                 f"{trimmed} graphique(s) ont été exclus pour respecter la limite de {plan_params.get('max_slides')} slides."
             )
 
+        _check_timeout()
         text_style = plan_params.get("ai_style") or additional_options.get("text_style") or "lite"
 
         env_api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -143,6 +156,7 @@ def pipeline_run(
         if plan_params.get("max_slides") is not None:
             presentation_options["max_slides"] = plan_params["max_slides"]
 
+        _check_timeout()
         build_summary = build_presentation(
             title,
             plots,
