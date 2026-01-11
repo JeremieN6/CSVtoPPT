@@ -1,4 +1,4 @@
-"""Pydantic schemas for authentication endpoints."""
+"""Pydantic schemas for authentication endpoints !"""
 from __future__ import annotations
 
 from datetime import datetime
