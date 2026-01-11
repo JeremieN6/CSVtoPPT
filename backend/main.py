@@ -1,7 +1,9 @@
 """FastAPI application exposing the CSV -> PPT pipeline."""
 from __future__ import annotations
 
+import logging
 import os
+import time
 import traceback
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -64,6 +66,8 @@ app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(billing_router)
 app.include_router(billing_webhook_router)
 
+logger = logging.getLogger(__name__)
+
 
 # Load environment variables early so pipeline can see OPENAI_API_KEY even on /generate-report
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -92,6 +96,11 @@ async def generate_report(
     use_ai: bool = Form(True),
     api_key: Optional[str] = Form(None),
 ) -> FileResponse:
+    start_time = time.perf_counter()
+    outcome = "started"
+    row_count: Optional[int] = None
+    file_size: Optional[int] = None
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="Aucun fichier reçu.")
     if not utils.is_allowed_extension(file.filename):
@@ -162,12 +171,14 @@ async def convert_dataset(
     try:
         saved_file = await utils.save_upload_file(file, upload_dir)
         utils.validate_file_size(saved_file)
+        file_size = saved_file.stat().st_size
 
         parsed = load_and_parse_file(str(saved_file))
         dataframe = parsed.get("dataframe")
         diagnostic = parsed.get("diagnostic", {})
         if dataframe is None:
             raise HTTPException(status_code=400, detail=diagnostic.get("error") or "Impossible de lire le fichier fourni.")
+        row_count = diagnostic.get("num_rows")
 
         enforcement = check_usage_limits(current_user, dataframe, requested_slide_count=None)
         if not enforcement.get("allowed"):
@@ -199,26 +210,42 @@ async def convert_dataset(
         session.add(current_user)
         session.commit()
 
+        outcome = "success"
+        duration = time.perf_counter() - start_time
+        logger.info(
+            "convert_dataset outcome=%s duration=%.2fs user=%s file=%s size_bytes=%s rows=%s warnings=%d",
+            outcome,
+            duration,
+            getattr(current_user, "email", "unknown"),
+            file.filename,
+            file_size,
+            row_count,
+            len(warnings),
+        )
         return response
     except HTTPException:
+        outcome = "http_exception"
         session.rollback()
         _restore_usage_state(current_user, usage_snapshot)
         if ppt_path:
             utils.safe_delete_file(ppt_path)
         raise
     except ValueError as exc:
+        outcome = "value_error"
         session.rollback()
         _restore_usage_state(current_user, usage_snapshot)
         if ppt_path:
             utils.safe_delete_file(ppt_path)
         raise HTTPException(status_code=400, detail=str(exc))
     except PipelineError as exc:
+        outcome = "pipeline_error"
         session.rollback()
         _restore_usage_state(current_user, usage_snapshot)
         if ppt_path:
             utils.safe_delete_file(ppt_path)
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:  # pragma: no cover
+        outcome = "exception"
         session.rollback()
         _restore_usage_state(current_user, usage_snapshot)
         if ppt_path:
@@ -227,6 +254,17 @@ async def convert_dataset(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erreur interne: {str(exc)}") from exc
     finally:
+        if outcome != "success":
+            duration = time.perf_counter() - start_time
+            logger.info(
+                "convert_dataset outcome=%s duration=%.2fs user=%s file=%s size_bytes=%s rows=%s",
+                outcome,
+                duration,
+                getattr(current_user, "email", "unknown"),
+                file.filename,
+                file_size,
+                row_count,
+            )
         utils.cleanup_path(upload_dir)
 
 
