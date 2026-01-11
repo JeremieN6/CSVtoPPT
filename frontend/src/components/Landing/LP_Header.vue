@@ -103,7 +103,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 
 const AUTH_EVENT = 'csvtoppt-auth-changed'
-const CONTACT_EMAIL = 'contact@csvtoppt.com'
+const CONTACT_EMAIL = 'contact-csvtoppt@sassify.fr'
 const isMenuOpen = ref(false)
 const isAuthenticated = ref(false)
 const router = useRouter()

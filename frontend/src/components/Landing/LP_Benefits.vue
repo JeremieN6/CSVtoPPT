@@ -56,7 +56,7 @@ const benefits = [
     description:
       'Fini les copier-coller interminables, les ajustements de colonnes et la mise en forme à répétition. Le convertisseur transforme vos CSV ou Excel en présentation complète en quelques secondes.',
     detail:
-      'Concrètement : jusqu’à 10 heures récupérées par mois pour vous concentrer sur l’analyse, la stratégie et la prise de décision — pas sur la mise en page.',
+      'Concrètement : jusqu’à 10 heures récupérées par mois pour vous concentrer sur l’analyse, la stratégie et la prise de décision, pas sur la mise en page.',
   },
   {
     id: 2,
@@ -85,7 +85,7 @@ const benefits = [
     title: 'Productivité maximale dès la première utilisation',
     description:
       'Pas de tutoriel de 20 minutes, pas de logiciel lourd. Trois étapes suffisent pour obtenir un PPT prêt à l’emploi.',
-    detail: 'En clair : aucune friction, aucune perte de temps — juste des résultats immédiats.',
+    detail: 'En clair : aucune friction, aucune perte de temps, juste des résultats immédiats.',
     steps: [
       'Uploadez votre fichier CSV ou Excel',
       'L’outil génère automatiquement votre PowerPoint',
