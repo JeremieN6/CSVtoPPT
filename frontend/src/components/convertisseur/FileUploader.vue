@@ -23,7 +23,9 @@
           <p class="text-sm text-gray-500 dark:text-gray-300">
             <span class="font-semibold">Cliquez pour sélectionner</span> ou faites glisser votre fichier.
           </p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">Formats acceptés : CSV ou XLSX (max 10&nbsp;Mo).</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            Formats acceptés : CSV/TSV/TXT (max 15&nbsp;Mo) ou XLS/XLSX (max 8&nbsp;Mo).
+          </p>
         </div>
         <button
           type="button"
@@ -38,7 +40,7 @@
           id="file-upload"
           type="file"
           class="hidden"
-          accept=".csv,.xlsx"
+          accept=".csv,.tsv,.txt,.xlsx,.xls"
           :disabled="disabled"
           @change="handleFileChange"
         />
@@ -76,13 +78,13 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['file-selected'])
+const emit = defineEmits(['file-selected', 'file-error'])
 
 const fileInput = ref(null)
 const isDragging = ref(false)
 const localError = ref('')
 
-const allowedExtensions = ['csv', 'xlsx']
+const allowedExtensions = ['csv', 'tsv', 'txt', 'xlsx', 'xls']
 
 const validateFile = (file) => {
   if (!file) return false
@@ -96,6 +98,7 @@ const handleFile = (fileList) => {
 
   if (!validateFile(file)) {
     localError.value = 'Format non supporté. Choisissez un CSV ou un XLSX.'
+    emit('file-error', 'Seuls les fichiers CSV ou XLSX sont acceptés.')
     return
   }
 

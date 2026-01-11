@@ -30,7 +30,12 @@
         </div>
         <div class="rounded-3xl border border-gray-200 bg-white p-8 shadow-lg dark:border-gray-800 dark:bg-gray-900">
           <div class="space-y-6">
-            <FileUploader :disabled="isLoading" :selected-file-name="selectedFile?.name ?? ''" @file-selected="handleFileSelected" />
+            <FileUploader
+              :disabled="isLoading"
+              :selected-file-name="selectedFile?.name ?? ''"
+              @file-selected="handleFileSelected"
+              @file-error="handleFileError"
+            />
 
             <div class="grid gap-4 md:grid-cols-2">
               <div>
@@ -216,6 +221,10 @@ const API_BASE_URL = (
 ).replace(/\/$/, '')
 const AUTH_TOKEN_KEY = 'access_token'
 const PLAN_LIMITS = { free: 10 }
+const SIZE_LIMITS = {
+  csv: 15 * 1024 * 1024, // 15 Mo
+  excel: 8 * 1024 * 1024, // 8 Mo
+}
 
 const selectedFile = ref(null)
 const reportTitle = ref('Rapport - Présentation du jour')
@@ -241,10 +250,36 @@ const resetDownload = () => {
 }
 
 const handleFileSelected = (file) => {
+  if (!file) return
+
+  const extension = file.name.split('.').pop()?.toLowerCase() || ''
+  const isExcel = ['xlsx', 'xls'].includes(extension)
+  const isCsvLike = ['csv', 'tsv', 'txt'].includes(extension)
+  const limit = isExcel ? SIZE_LIMITS.excel : SIZE_LIMITS.csv
+
+  if (!isExcel && !isCsvLike) {
+    handleFileError('Seuls les fichiers CSV/TSV/TXT ou XLS/XLSX sont acceptés.')
+    selectedFile.value = null
+    return
+  }
+
+  if (file.size > limit) {
+    showQuotaToast(
+      "Le fichier est vraiment trop volumineux. Veuillez le segmenter ou choisir un autre fichier. Sinon contactez-nous : contact-csvtoppt@sassify.fr",
+      { persistent: true }
+    )
+    selectedFile.value = null
+    return
+  }
+
   selectedFile.value = file
   errorMessage.value = ''
   warnings.value = []
   resetDownload()
+}
+
+const handleFileError = (message) => {
+  showQuotaToast(message || 'Format non supporté. Choisissez un CSV/TSV/TXT ou un XLS/XLSX.', { persistent: true })
 }
 
 const sanitizeFileName = (value) =>
@@ -296,6 +331,11 @@ const generatePresentation = async () => {
         console.error('Erreur parse JSON', err)
       }
       if (status === 403) {
+        if (/limite du plan free/i.test(errorDetail) || /5\s*000/.test(errorDetail)) {
+          showQuotaToast(errorDetail || 'Votre fichier dépasse la limite de lignes du plan Free.', { persistent: true })
+          isLoading.value = false
+          return
+        }
         const parsed = parseQuotaDetail(errorDetail)
         quotaCounts.value = parsed
         quotaModalMessage.value = errorDetail || 'Limite atteinte sur votre plan actuel.'
@@ -308,6 +348,14 @@ const generatePresentation = async () => {
         window.localStorage.removeItem('user')
         errorMessage.value = 'Session expirée, merci de vous reconnecter.'
         window.location.href = '/connexion'
+        isLoading.value = false
+        return
+      }
+      if (status === 400 || status === 413 || /trop volumineux/i.test(errorDetail)) {
+        showQuotaToast(
+          "Le fichier est vraiment trop volumineux. Veuillez le segmenter ou choisir un autre fichier. Sinon contactez-nous : contact-csvtoppt@sassify.fr",
+          { persistent: true }
+        )
         isLoading.value = false
         return
       }
@@ -349,14 +397,18 @@ const parseQuotaDetail = (detail) => {
   return { used: null, limit: null }
 }
 
-const showQuotaToast = (message) => {
-  quotaToast.value = { visible: true, message }
+const showQuotaToast = (message, options = {}) => {
+  const persistent = Boolean(options.persistent)
+  quotaToast.value = { visible: true, message, persistent }
   if (quotaToastTimer) {
     clearTimeout(quotaToastTimer)
+    quotaToastTimer = null
   }
-  quotaToastTimer = setTimeout(() => {
-    quotaToast.value.visible = false
-  }, 6000)
+  if (!persistent) {
+    quotaToastTimer = setTimeout(() => {
+      quotaToast.value.visible = false
+    }, 6000)
+  }
 }
 
 const hideQuotaToast = () => {

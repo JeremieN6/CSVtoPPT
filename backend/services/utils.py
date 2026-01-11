@@ -11,7 +11,9 @@ from uuid import uuid4
 
 from fastapi import UploadFile
 
-MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+# Upload caps to protect the server
+MAX_UPLOAD_SIZE_CSV = 15 * 1024 * 1024  # 15 MB for CSV-like files
+MAX_UPLOAD_SIZE_EXCEL = 8 * 1024 * 1024  # 8 MB for Excel
 ALLOWED_EXTENSIONS = {".csv", ".tsv", ".txt", ".xlsx", ".xls"}
 
 
@@ -68,5 +70,13 @@ async def save_upload_file(upload: UploadFile, destination_dir: Path) -> Path:
 
 def validate_file_size(path: Path) -> None:
     size = path.stat().st_size
-    if size > MAX_UPLOAD_SIZE:
-        raise ValueError("Fichier trop volumineux (maximum 50 Mo).")
+    suffix = path.suffix.lower()
+    if suffix in {".xlsx", ".xls"}:
+        limit = MAX_UPLOAD_SIZE_EXCEL
+        label = "8 Mo pour les fichiers Excel"
+    else:
+        limit = MAX_UPLOAD_SIZE_CSV
+        label = "15 Mo pour les fichiers CSV/TSV/TXT"
+
+    if size > limit:
+        raise ValueError(f"Fichier trop volumineux (maximum {label}).")
