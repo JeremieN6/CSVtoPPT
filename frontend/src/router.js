@@ -97,7 +97,14 @@ router.beforeEach((to, from, next) => {
     return next()
   }
   window.localStorage.removeItem('user')
-  return next({ path: '/connexion' })
+  return next({
+    path: '/connexion',
+    query: {
+      ...to.query,
+      auth: 'required',
+      redirect: to.fullPath,
+    },
+  })
 })
 
 export default router

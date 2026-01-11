@@ -95,14 +95,19 @@ const closeToast = () => {
 const router = useRouter()
 const route = useRoute()
 
-const removeCheckoutQuery = () => {
+const removeQueryKeys = (keys) => {
   const cleanedQuery = { ...route.query }
-  delete cleanedQuery.checkout
+  keys.forEach((key) => {
+    delete cleanedQuery[key]
+  })
   router.replace({ path: route.path, query: cleanedQuery, hash: route.hash })
 }
 
 const handleCheckoutStatus = (status) => {
   const normalized = status.toLowerCase()
+  // Clean query first to avoid leaving checkout/auth in URL after we react.
+  removeQueryKeys(['checkout', 'auth'])
+
   if (normalized === 'success') {
     showToast('Votre abonnement est activé.', 'success')
     router.replace({ path: '/convertisseur' })
@@ -116,7 +121,15 @@ const handleCheckoutStatus = (status) => {
     showToast("Quelque chose s'est mal passé… Veuillez réessayer ou contacter le support.", 'danger')
     router.replace({ path: '/#pricing' })
   }
-  removeCheckoutQuery()
+}
+
+const handleAuthNotice = (flag) => {
+  if (!flag) return
+  const normalized = flag.toLowerCase()
+  if (normalized === 'required') {
+    showToast('Connectez-vous pour accéder à votre compte et gérer votre abonnement.', 'danger')
+  }
+  removeQueryKeys(['auth'])
 }
 
 watch(
@@ -126,6 +139,15 @@ watch(
       return
     }
     handleCheckoutStatus(String(status))
+  },
+  { immediate: true }
+)
+
+watch(
+  () => route.query.auth,
+  (flag) => {
+    if (!flag) return
+    handleAuthNotice(String(flag))
   },
   { immediate: true }
 )
