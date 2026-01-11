@@ -109,8 +109,13 @@ const handleCheckoutStatus = (status) => {
     return
   }
 
-  showToast("Quelque chose s'est mal passé… Veuillez réessayer ou contacter le support.", 'danger')
-  router.replace({ path: '/#pricing' })
+  if (normalized === 'cancel') {
+    showToast("Le paiement a été annulé. Aucun abonnement n'a été activé.", 'danger')
+    router.replace({ path: '/mon-compte' })
+  } else {
+    showToast("Quelque chose s'est mal passé… Veuillez réessayer ou contacter le support.", 'danger')
+    router.replace({ path: '/#pricing' })
+  }
   removeCheckoutQuery()
 }
 

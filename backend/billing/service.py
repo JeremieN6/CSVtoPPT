@@ -36,7 +36,7 @@ if not DASHBOARD_PATH.startswith("/"):
 DASHBOARD_URL = os.getenv("APP_DASHBOARD_URL", f"{FRONTEND_BASE_URL}{DASHBOARD_PATH}")
 CHECKOUT_SUCCESS_URL = os.getenv(
     "STRIPE_CHECKOUT_SUCCESS_URL",
-    f"{DASHBOARD_URL}?checkout=success",
+    f"{FRONTEND_BASE_URL}/convertisseur?checkout=success",
 )
 CHECKOUT_CANCEL_URL = os.getenv(
     "STRIPE_CHECKOUT_CANCEL_URL",
