@@ -87,6 +87,9 @@ backend/**/*.pyc
 .DS_Store
 Thumbs.db
 
+# Shell scripts
+*.sh
+
 # IDE
 .idea/
 *.sublime-project
