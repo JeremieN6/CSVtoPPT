@@ -8,35 +8,37 @@
                     <span class="self-center text-xl font-semibold text-gray-700 whitespace-nowrap dark:text-white">CSVtoPPT</span>
                 </RouterLink>
                 <div class="flex items-center gap-3 lg:order-2">
-                    <template v-if="!isAuthenticated">
-                        <RouterLink
-                            to="/inscription"
-                            class="py-2.5 px-5 me-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700"
-                        >
-                            Inscription
-                        </RouterLink>
-                        <RouterLink
-                            to="/connexion"
-                            class="inline-flex justify-center items-center py-3 px-5 text-white font-medium text-center rounded-lg bg-blue-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-900"
-                        >
-                            Connexion
-                        </RouterLink>
-                    </template>
-                    <template v-else>
-                        <RouterLink
-                            to="/mon-compte"
-                            class="py-2.5 px-5 me-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700"
-                        >
-                            Mon compte
-                        </RouterLink>
-                        <button
-                            type="button"
-                            class="inline-flex justify-center items-center py-3 px-5 text-white font-medium text-center rounded-lg bg-blue-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-900"
-                            @click="handleLogout"
-                        >
-                            Déconnexion
-                        </button>
-                    </template>
+                    <div class="hidden lg:flex items-center gap-3">
+                        <template v-if="!isAuthenticated">
+                            <RouterLink
+                                to="/inscription"
+                                class="py-2.5 px-5 me-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700"
+                            >
+                                Inscription
+                            </RouterLink>
+                            <RouterLink
+                                to="/connexion"
+                                class="inline-flex justify-center items-center py-3 px-5 text-white font-medium text-center rounded-lg bg-blue-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-900"
+                            >
+                                Connexion
+                            </RouterLink>
+                        </template>
+                        <template v-else>
+                            <RouterLink
+                                to="/mon-compte"
+                                class="py-2.5 px-5 me-2 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700"
+                            >
+                                Mon compte
+                            </RouterLink>
+                            <button
+                                type="button"
+                                class="inline-flex justify-center items-center py-3 px-5 text-white font-medium text-center rounded-lg bg-blue-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-900"
+                                @click="handleLogout"
+                            >
+                                Déconnexion
+                            </button>
+                        </template>
+                    </div>
                     <button @click="toggleMenu" type="button"
                         class="inline-flex items-center p-2 ml-1 text-sm text-gray-500 rounded-lg lg:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
                         :aria-expanded="isMenuOpen">
@@ -91,6 +93,40 @@
                             </a>
                         </li>
                     </ul>
+                    <div class="mt-6 flex flex-col gap-3 lg:hidden">
+                        <template v-if="!isAuthenticated">
+                            <RouterLink
+                                to="/inscription"
+                                class="w-full py-3 px-5 text-center text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700"
+                                @click="closeMenu"
+                            >
+                                Inscription
+                            </RouterLink>
+                            <RouterLink
+                                to="/connexion"
+                                class="w-full inline-flex justify-center items-center py-3 px-5 text-white font-medium text-center rounded-lg bg-blue-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-900"
+                                @click="closeMenu"
+                            >
+                                Connexion
+                            </RouterLink>
+                        </template>
+                        <template v-else>
+                            <RouterLink
+                                to="/mon-compte"
+                                class="w-full py-3 px-5 text-center text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700"
+                                @click="closeMenu"
+                            >
+                                Mon compte
+                            </RouterLink>
+                            <button
+                                type="button"
+                                class="w-full inline-flex justify-center items-center py-3 px-5 text-white font-medium text-center rounded-lg bg-blue-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-900"
+                                @click="handleLogout"
+                            >
+                                Déconnexion
+                            </button>
+                        </template>
+                    </div>
                 </div>
             </div>
         </nav>
