@@ -5,7 +5,7 @@
             <div class="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl">
                 <RouterLink to="/" class="flex items-center">
                     <span class="text-4xl">📃</span>
-                    <span class="self-center text-xl font-semibold text-gray-700 whitespace-nowrap dark:text-white">CSVtoPPT</span>
+                    <span class="self-center text-xl font-semibold text-gray-700 whitespace-nowrap dark:text-white">{{ APP_NAME }}</span>
                 </RouterLink>
                 <div class="flex items-center gap-3 lg:order-2">
                     <div class="hidden lg:flex items-center gap-3">
@@ -138,6 +138,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 
+const APP_NAME = 'CSVtoPPT'
 const AUTH_EVENT = 'csvtoppt-auth-changed'
 const CONTACT_EMAIL = 'contact-csvtoppt@sassify.fr'
 const isMenuOpen = ref(false)

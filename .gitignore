@@ -44,6 +44,9 @@ tokens.json
 # Local helper scripts (not deployed)
 .script/
 
+# Ops notes (personal)
+ops-notes/
+
 # Folder for generated files about issues fixed
 bugsFixed
 
