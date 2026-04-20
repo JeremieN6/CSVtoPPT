@@ -6,7 +6,7 @@
           <p class="font-light text-gray-500 sm:text-xl dark:text-gray-400">Retrouvez les meilleurs conseils pour dans ces articles de blog.</p>
       </div> 
       <div class="grid gap-8 lg:grid-cols-2">
-          <article v-for="article in articles" :key="article.slug" class="p-6 bg-white rounded-lg border border-gray-200 shadow-md dark:bg-gray-800 dark:border-gray-700">
+          <article v-for="article in articles" :key="article.slug" class="p-6 bg-white rounded-lg border border-gray-200 shadow-md dark:bg-gray-800 dark:border-gray-700 transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg">
               <div class="flex justify-between items-center mb-5 text-gray-500">
                   <span class="bg-blue-100 text-blue-800 text-xs font-medium inline-flex items-center px-2.5 py-0.5 rounded dark:bg-blue-200 dark:text-blue-800">
                     <svg class="mr-1 w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 002 2H4a2 2 0 01-2-2V5zm3 1h6v4H5V6zm6 6H5v2h6v-2z" clip-rule="evenodd"></path><path d="M15 7h1a2 2 0 012 2v5.5a1.5 1.5 0 01-3 0V7z"></path></svg>
@@ -14,13 +14,13 @@
                   </span>
                   <span class="text-sm">Le {{ article.date }}</span>
               </div>
-              <h2 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"><a href="#">{{article.title}}</a></h2>
+              <h2 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"><RouterLink :to="{ name: 'BlogContent', params: { slug: article.slug } }" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{{article.title}}</RouterLink></h2>
               <p class="mb-5 font-light text-gray-500 dark:text-gray-400">{{article.intro}}</p>
               <div class="flex justify-between items-center">
                   <div class="flex items-center space-x-4">
-                      <img class="w-7 h-7 rounded-full object-cover mr-0" src="../../assets/images/moi.webp" alt="Amandine C. avatar" />
+                      <img class="w-7 h-7 rounded-full object-cover mr-0" src="../../assets/images/moi.webp" alt="Jérémie N. avatar" />
                       <span class="font-medium dark:text-white">
-                          Amandine C.
+                          Jérémie N.
                       </span>
                   </div>
                   <RouterLink :to="{ name: 'BlogContent', params: { slug: article.slug } }">
