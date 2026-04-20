@@ -203,6 +203,8 @@
 import posthog from 'posthog-js'
 import { ref } from 'vue'
 
+const safeCapture = (event, props) => { try { posthog.capture(event, props) } catch {} }
+
 const API_BASE_URL = (
     import.meta.env.VITE_API_BASE_URL
     || (typeof window !== 'undefined'
@@ -226,7 +228,7 @@ const requireToken = () => {
 const redirectToCheckout = async () => {
     if (isCheckoutLoading.value) return
     billingError.value = ''
-    posthog.capture('checkout_started', { plan: 'pro' })
+    safeCapture('checkout_started', { plan: 'pro' })
 
     try {
         const token = requireToken()

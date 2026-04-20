@@ -5,15 +5,20 @@ import App from './App.vue'
 import router from './router'
 import posthog from 'posthog-js'
 
-posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
-  api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-  capture_pageview: false,
-})
+const phKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY
+if (phKey) {
+  posthog.init(phKey, {
+    api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+    capture_pageview: false,
+  })
+}
+
+window.posthog = posthog
 
 const app = createApp(App)
 
 router.afterEach((to) => {
-  posthog.capture('$pageview', { current_url: to.fullPath })
+  if (phKey) posthog.capture('$pageview', { current_url: to.fullPath })
   // Mise à jour du <title>
   if (to.meta?.title) {
     document.title = to.meta.title

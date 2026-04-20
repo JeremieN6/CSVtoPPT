@@ -226,6 +226,8 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import FileUploader from './FileUploader.vue'
 import posthog from 'posthog-js'
 
+const safeCapture = (event, props) => { try { posthog.capture(event, props) } catch {} }
+
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL
   || (typeof window !== 'undefined'
@@ -291,7 +293,7 @@ const handleFileSelected = (file) => {
   }
 
   selectedFile.value = file
-    posthog.capture('file_uploaded', {
+  safeCapture('file_uploaded', {
     file_type: extension,
     file_size_bytes: file.size
   })
@@ -390,7 +392,7 @@ const generatePresentation = async () => {
         quotaCounts.value = parsed
         quotaModalMessage.value = errorDetail || 'Limite atteinte sur votre plan actuel.'
         showQuotaModal.value = true
-        posthog.capture('upgrade_wall_seen', {
+        safeCapture('upgrade_wall_seen', {
           used: quotaCounts.value.used,
           limit: quotaCounts.value.limit
         })
@@ -428,7 +430,7 @@ const generatePresentation = async () => {
     downloadFileName.value = `${sanitizeFileName(reportTitle.value)}.pptx`
     downloadUrl.value = URL.createObjectURL(blob)
 
-    posthog.capture('ppt_downloaded', {
+    safeCapture('ppt_downloaded', {
       theme: theme.value,
       title_length: reportTitle.value.length
     })
