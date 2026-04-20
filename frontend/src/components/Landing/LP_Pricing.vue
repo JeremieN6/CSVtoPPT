@@ -200,6 +200,7 @@
 </template>
 
 <script setup>
+import posthog from 'posthog-js'
 import { ref } from 'vue'
 
 const API_BASE_URL = (
@@ -225,6 +226,7 @@ const requireToken = () => {
 const redirectToCheckout = async () => {
     if (isCheckoutLoading.value) return
     billingError.value = ''
+    posthog.capture('checkout_started', { plan: 'pro' })
 
     try {
         const token = requireToken()

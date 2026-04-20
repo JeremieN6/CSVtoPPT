@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from posthog import Posthog
 from sqlalchemy.orm import Session
 
 
@@ -29,6 +30,11 @@ def _load_env() -> None:
 
 
 _load_env()
+
+posthog = Posthog(
+    project_api_key=os.environ.get("POSTHOG_API_KEY", ""),
+    host=os.environ.get("POSTHOG_HOST", "https://eu.i.posthog.com"),
+)
 
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -54,6 +60,13 @@ from modules.module_j_plan_limits import check_usage_limits
 
 
 app = FastAPI(title="CSV to PPT API", version="0.1.0")
+
+
+@app.on_event("shutdown")
+def _shutdown() -> None:
+    posthog.shutdown()
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -134,15 +147,28 @@ async def generate_report(
         if warnings:
             response.headers["X-Report-Warnings"] = " | ".join(warnings[:5])
 
+        posthog.capture(
+            "anonymous",
+            "report_generated",
+            {
+                "theme": theme,
+                "use_ai": use_ai,
+                "duration_seconds": round(time.perf_counter() - start_time, 2),
+                "endpoint": "generate-report",
+            },
+        )
         background_tasks.add_task(utils.safe_delete_file, ppt_path)
         return response
     except HTTPException:
         raise
     except ValueError as exc:
+        posthog.capture("anonymous", "report_generation_failed", {"endpoint": "generate-report", "error": "value_error"})
         raise HTTPException(status_code=400, detail=str(exc))
     except PipelineError as exc:
+        posthog.capture("anonymous", "report_generation_failed", {"endpoint": "generate-report", "error": "pipeline_error"})
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
+        posthog.capture("anonymous", "report_generation_failed", {"endpoint": "generate-report", "error": "exception"})
         print(f"ERROR in generate_report: {exc}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erreur interne: {str(exc)}") from exc
@@ -166,6 +192,10 @@ async def convert_dataset(
     if not utils.is_allowed_extension(file.filename):
         raise HTTPException(status_code=400, detail="Format non supporté. Fournissez un CSV ou XLSX.")
 
+    start_time = time.perf_counter()
+    outcome = "started"
+    row_count: Optional[int] = None
+    file_size: Optional[int] = None
     upload_dir = utils.make_temp_dir("upload_")
     ppt_path: Optional[str] = None
     usage_snapshot = _snapshot_usage_state(current_user)
@@ -184,6 +214,14 @@ async def convert_dataset(
 
         enforcement = check_usage_limits(current_user, dataframe, requested_slide_count=None)
         if not enforcement.get("allowed"):
+            posthog.capture(
+                str(current_user.id),
+                "plan_limit_reached",
+                {
+                    "plan": getattr(current_user, "plan", None),
+                    "conversions_this_month": getattr(current_user, "conversions_this_month", None),
+                },
+            )
             raise HTTPException(status_code=403, detail=enforcement.get("error") or "Limite de plan atteinte.")
 
         pipeline_result = pipeline_run(
@@ -215,6 +253,20 @@ async def convert_dataset(
 
         outcome = "success"
         duration = time.perf_counter() - start_time
+        posthog.capture(
+            str(current_user.id),
+            "report_generated",
+            {
+                "theme": theme,
+                "use_ai": use_ai,
+                "row_count": row_count,
+                "file_size_bytes": file_size,
+                "duration_seconds": round(duration, 2),
+                "warnings_count": len(warnings),
+                "plan": getattr(current_user, "plan", None),
+                "endpoint": "convert",
+            },
+        )
         logger.info(
             "convert_dataset outcome=%s duration=%.2fs user=%s file=%s size_bytes=%s rows=%s warnings=%d",
             outcome,
@@ -232,6 +284,11 @@ async def convert_dataset(
         _restore_usage_state(current_user, usage_snapshot)
         if ppt_path:
             utils.safe_delete_file(ppt_path)
+        posthog.capture(
+            str(current_user.id),
+            "report_generation_failed",
+            {"error": "timeout", "plan": getattr(current_user, "plan", None), "endpoint": "convert"},
+        )
         logger.warning(
             "convert_dataset timeout duration=%.2fs user=%s file=%s size_bytes=%s rows=%s",
             time.perf_counter() - start_time,
@@ -257,6 +314,11 @@ async def convert_dataset(
         _restore_usage_state(current_user, usage_snapshot)
         if ppt_path:
             utils.safe_delete_file(ppt_path)
+        posthog.capture(
+            str(current_user.id),
+            "report_generation_failed",
+            {"error": "value_error", "endpoint": "convert"},
+        )
         raise HTTPException(status_code=400, detail=str(exc))
     except PipelineError as exc:
         outcome = "pipeline_error"
@@ -264,6 +326,11 @@ async def convert_dataset(
         _restore_usage_state(current_user, usage_snapshot)
         if ppt_path:
             utils.safe_delete_file(ppt_path)
+        posthog.capture(
+            str(current_user.id),
+            "report_generation_failed",
+            {"error": "pipeline_error", "endpoint": "convert"},
+        )
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:  # pragma: no cover
         outcome = "exception"
@@ -271,6 +338,11 @@ async def convert_dataset(
         _restore_usage_state(current_user, usage_snapshot)
         if ppt_path:
             utils.safe_delete_file(ppt_path)
+        posthog.capture(
+            str(current_user.id),
+            "report_generation_failed",
+            {"error": "exception", "endpoint": "convert"},
+        )
         print(f"ERROR in convert_dataset: {exc}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erreur interne: {str(exc)}") from exc
