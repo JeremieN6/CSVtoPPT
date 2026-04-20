@@ -19,7 +19,7 @@
               <div class="flex justify-between items-center">
                   <div class="flex items-center space-x-4">
                       <img class="w-7 h-7 rounded-full object-cover mr-0" src="../../assets/images/moi.webp" alt="Jérémie N. avatar" />
-                      <span class="font-medium dark:text-white">
+                      <span class="font-medium text-gray-900 dark:text-white">
                           Jérémie N.
                       </span>
                   </div>
