@@ -86,6 +86,7 @@
                         <span class="text-4xl font-extrabold">14,90€</span>
                         <span class="text-sm text-gray-500 dark:text-gray-300">/ mois</span>
                     </div>
+                    <p class="mt-2 text-xs font-semibold text-orange-500 uppercase tracking-wide">⏳ Prix de lancement</p>
                                 <ul class="mt-8 space-y-4 text-sm text-gray-800 dark:text-gray-200">
                                                 <li class="flex items-start gap-3">
                                                     <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">

@@ -46,7 +46,9 @@
                 <!-- <div class="mb-12">
                 <span class="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">Ils utilisent CSVtoPPT</span>
                 </div> -->
-                <div class="mx-auto grid max-w-screen-xl grid-cols-2 gap-8 px-4 text-gray-500 dark:text-gray-400 sm:grid-cols-3 sm:gap-12 lg:grid-cols-6">
+                <!-- ANCIENNE VERSION — logos placeholder (Flowbite, Netlify, Figma, Google, Adobe, Spotify) retirés car aucun vrai client
+                <div class="mx-auto grid max-w-screen-xl grid-cols-2 gap-8 px-4 text-gray-500 dark:text-gray-400 sm:grid-cols-3 sm:gap-12 lg:grid-cols-6"> -->
+                <div class="hidden">
                     <a href="#" class="flex items-center md:justify-center" aria-label="Flowbite">
                     <svg class="h-10 hover:text-gray-900 dark:hover:text-white" viewBox="0 0 106 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <g clip-path="url(#clip0_1005_171562)">

@@ -16,11 +16,18 @@
                         Je dois présenter des dashboards toutes les semaines. Copier-coller mes tableaux dans PowerPoint, ajuster les colonnes, harmoniser les couleurs... c'était un calvaire. Maintenant ? Un clic et c'est fait. Les slides sont cohérentes, le format est nickel. Franchement, c'est devenu indispensable."</p>
                 </blockquote>
                 <figcaption class="flex items-center justify-center mt-6 space-x-3">
+                    <!-- ANCIENNE VERSION — photo stock Flowbite retirée (manque de crédibilité B2B)
                     <img class="w-8 h-8 rounded-full object-cover"
                         src="https://flowbite.s3.amazonaws.com/blocks/marketing-ui/avatars/roberta-casas.png"
                         alt="profile picture">
                     <div class="flex items-center divide-x-2 divide-gray-500 dark:divide-gray-700">
                         <div class="pr-3 font-medium text-gray-900 dark:text-white">Sarah Lemaire</div>
+                        <div class="pl-3 text-sm font-light text-gray-500 dark:text-gray-400">Data Analyst - Indépendante</div>
+                    </div>
+                    -->
+                    <div class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 dark:bg-blue-800 text-white font-bold text-sm flex-shrink-0">S</div>
+                    <div class="flex items-center divide-x-2 divide-gray-500 dark:divide-gray-700">
+                        <div class="pr-3 font-medium text-gray-900 dark:text-white">Sarah L.</div>
                         <div class="pl-3 text-sm font-light text-gray-500 dark:text-gray-400">Data Analyst - Indépendante</div>
                     </div>
                 </figcaption>
