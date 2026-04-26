@@ -124,6 +124,7 @@
                 class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
                 :href="downloadUrl"
                 :download="downloadFileName"
+                @click="trackDownload"
               >
                 Télécharger le PPT
               </a>
@@ -522,6 +523,19 @@ const refreshUsageSnapshotAndToast = async () => {
     }
   } catch (err) {
     console.warn('Snapshot usage échoué', err)
+  }
+}
+
+const trackDownload = async () => {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+  if (!token) return
+  try {
+    await fetch(`${API_BASE_URL}/track-download`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  } catch (err) {
+    console.warn('Impossible de tracker le téléchargement', err)
   }
 }
 </script>

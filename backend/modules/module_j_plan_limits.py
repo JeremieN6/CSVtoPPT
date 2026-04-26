@@ -133,6 +133,9 @@ def _reset_monthly_quota_if_needed(user: Any) -> None:
     if last_reset is None or last_reset.year != now.year or last_reset.month != now.month:
         setattr(user, "conversions_last_month", previous_value)
         setattr(user, "conversions_this_month", 0)
+        previous_downloads = int(getattr(user, "downloads_this_month", 0) or 0)
+        setattr(user, "downloads_last_month", previous_downloads)
+        setattr(user, "downloads_this_month", 0)
         setattr(user, "last_reset_date", now)
 
 

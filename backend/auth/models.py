@@ -42,6 +42,8 @@ class User(Base):
     stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True)
     conversions_this_month: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     conversions_last_month: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    downloads_this_month: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    downloads_last_month: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     last_reset_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self) -> str:  # pragma: no cover - debug helper

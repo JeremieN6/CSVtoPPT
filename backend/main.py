@@ -56,7 +56,7 @@ from auth.models import User
 from auth.security import require_active_user
 from auth.service import get_session
 from modules.module_a_loader import load_and_parse_file
-from modules.module_j_plan_limits import check_usage_limits
+from modules.module_j_plan_limits import check_usage_limits, _reset_monthly_quota_if_needed
 
 
 app = FastAPI(title="CSV to PPT API", version="0.1.0")
@@ -372,3 +372,18 @@ def _snapshot_usage_state(user: User) -> Dict[str, Any]:
 def _restore_usage_state(user: User, snapshot: Dict[str, Any]) -> None:
     for field, value in snapshot.items():
         setattr(user, field, value)
+
+
+@app.post("/track-download")
+def track_download(
+    current_user: User = Depends(require_active_user),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Increment the download counter for the authenticated user."""
+    db_user = session.get(User, current_user.id)
+    if db_user:
+        _reset_monthly_quota_if_needed(db_user)
+        db_user.downloads_this_month = (db_user.downloads_this_month or 0) + 1
+        session.add(db_user)
+        session.commit()
+    return {"success": True}

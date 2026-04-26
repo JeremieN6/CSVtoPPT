@@ -34,6 +34,8 @@ class UserRead(UserBase):
     stripe_customer_id: Optional[str] = None
     conversions_this_month: int = 0
     conversions_last_month: int = 0
+    downloads_this_month: int = 0
+    downloads_last_month: int = 0
     last_reset_date: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

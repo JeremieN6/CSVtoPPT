@@ -48,7 +48,7 @@
             <div class="relative group inline-flex">
               <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[11px] font-semibold text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-200">?</span>
               <div class="invisible absolute left-1/2 z-20 mt-2 w-64 -translate-x-1/2 rounded-lg bg-gray-900 px-3 py-2 text-[11px] font-medium text-white opacity-0 shadow-lg transition duration-150 group-hover:visible group-hover:opacity-100 dark:bg-gray-800">
-                Les quotas Free permettent de tester l’outil. Le plan Pro supprime ces limites et finance l’infrastructure IA.
+                Les quotas Free permettent de tester l’outil. Le plan Pro supprime ces limites et finance l’infrastructure complète.
               </div>
             </div>
           </div>
@@ -63,6 +63,28 @@
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ lastResetCopy }}</p>
           </div>
           <p v-else class="mt-4 text-xs text-gray-500 dark:text-gray-400">{{ lastResetCopy }}</p>
+        </div>
+        <div>
+<svg class="mb-2 h-8 w-8 text-gray-400 dark:text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+  <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 3v4a1 1 0 0 1-1 1H5m4 10v-2m3 2v-6m3 6v-3m4-11v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7.914a1 1 0 0 1 .293-.707l3.914-3.914A1 1 0 0 1 9.914 3H18a1 1 0 0 1 1 1Z"/>
+</svg>
+
+
+
+          <h3 class="mb-2 text-gray-500 dark:text-gray-400">Téléchargements</h3>
+          <span class="flex items-center text-2xl font-bold text-gray-900 dark:text-white">
+            {{ downloadsThisMonth }}
+            <span :class="downloadTrendBadgeClasses">
+              <svg :class="downloadTrendIconClasses" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v13m0-13 4 4m-4-4-4 4" />
+              </svg>
+              {{ downloadTrendLabel }}
+            </span>
+          </span>
+          <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 sm:text-base">
+            {{ downloadTrendHelperText }}
+          </p>
+          <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">{{ downloadsLastResetCopy }}</p>
         </div>
       </div>
       <div class="py-4 md:py-8">
@@ -275,6 +297,8 @@ const planBadgeClasses = computed(() => resolvedPlan.value.badgeClasses)
 const fullName = computed(() => buildFullName(userProfile.value))
 const conversionsThisMonth = computed(() => Number(usageStats.value.conversions_this_month ?? 0))
 const conversionsLastMonth = computed(() => Number(usageStats.value.conversions_last_month ?? 0))
+const downloadsThisMonth = computed(() => Number(usageStats.value.downloads_this_month ?? 0))
+const downloadsLastMonth = computed(() => Number(usageStats.value.downloads_last_month ?? 0))
 const planLimitValue = computed(() => resolvedPlan.value.limit ?? Number.POSITIVE_INFINITY)
 const hasFiniteLimit = computed(() => Number.isFinite(planLimitValue.value))
 const usageProgress = computed(() => {
@@ -316,6 +340,48 @@ const trendHelperText = computed(() => {
   }
   return `vs ${conversionsLastMonth.value} le mois dernier`
 })
+
+const downloadTrendDelta = computed(() => downloadsThisMonth.value - downloadsLastMonth.value)
+const downloadTrendPercent = computed(() => {
+  if (downloadsLastMonth.value === 0) {
+    return downloadsThisMonth.value === 0 ? 0 : 100
+  }
+  return Math.round((downloadTrendDelta.value / downloadsLastMonth.value) * 100)
+})
+const downloadTrendLabel = computed(() => `${Math.abs(downloadTrendPercent.value)}%`)
+const isDownloadTrendPositive = computed(() => downloadTrendDelta.value >= 0)
+const downloadTrendBadgeClasses = computed(() =>
+  isDownloadTrendPositive.value
+    ? 'ms-2 inline-flex items-center rounded bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200'
+    : 'ms-2 inline-flex items-center rounded bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900 dark:text-red-200'
+)
+const downloadTrendIconClasses = computed(() =>
+  `-ms-1 me-1 h-4 w-4 ${isDownloadTrendPositive.value ? '' : 'rotate-180'}`
+)
+const downloadTrendHelperText = computed(() => {
+  if (downloadsLastMonth.value === 0 && downloadsThisMonth.value === 0) {
+    return 'Aucun téléchargement enregistré sur les deux derniers mois.'
+  }
+  if (downloadsLastMonth.value === 0) {
+    return 'Premiers téléchargements enregistrés ce mois-ci.'
+  }
+  return `vs ${downloadsLastMonth.value} le mois dernier`
+})
+const downloadsLastResetCopy = computed(() => {
+  if (!hasFiniteLimit.value) {
+    return 'Téléchargements illimités sur votre plan Pro.'
+  }
+  const raw = usageStats.value.last_reset_date
+  if (!raw) {
+    return 'Réinitialisation automatique chaque début de mois.'
+  }
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.valueOf())) {
+    return 'Réinitialisation automatique chaque début de mois.'
+  }
+  const formatted = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long' }).format(parsed)
+  return `Dernière remise à zéro le ${formatted}`
+})
 const lastResetCopy = computed(() => {
   if (!hasFiniteLimit.value) {
     return 'Conversions illimitées sur votre plan Pro.'
@@ -346,6 +412,8 @@ function createEmptyUsage() {
   return {
     conversions_this_month: 0,
     conversions_last_month: 0,
+    downloads_this_month: 0,
+    downloads_last_month: 0,
     last_reset_date: null,
   }
 }
@@ -395,6 +463,10 @@ function applyUsage(payload = {}) {
       Number(payload.conversions_this_month ?? usageStats.value.conversions_this_month ?? 0),
     conversions_last_month:
       Number(payload.conversions_last_month ?? usageStats.value.conversions_last_month ?? 0),
+    downloads_this_month:
+      Number(payload.downloads_this_month ?? usageStats.value.downloads_this_month ?? 0),
+    downloads_last_month:
+      Number(payload.downloads_last_month ?? usageStats.value.downloads_last_month ?? 0),
     last_reset_date: payload.last_reset_date ?? usageStats.value.last_reset_date ?? null,
   }
 }
