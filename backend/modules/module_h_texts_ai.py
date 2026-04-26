@@ -614,8 +614,30 @@ def generate_summary(
     provider: str = "openai",
     df: Optional[pd.DataFrame] = None,
     axis_column: Optional[str] = None,
+    report_title: Optional[str] = None,
 ) -> str:
+    import re as _re
+
     conclusion_stats = _compute_conclusion_stats(df, axis_column) if df is not None else []
+
+    # Extract year from title first, then from data period — never let the AI guess
+    report_year: Optional[str] = None
+    if report_title:
+        years_in_title = _re.findall(r"\b(20\d{2})\b", report_title)
+        if years_in_title:
+            report_year = years_in_title[-1]
+    if not report_year and conclusion_stats:
+        period_end = conclusion_stats[0].get("period_end") or ""
+        years_in_period = _re.findall(r"\b(20\d{2})\b", str(period_end))
+        if years_in_period:
+            report_year = years_in_period[-1]
+
+    year_instruction = (
+        f"IMPORTANT : Ce rapport couvre l'année {report_year}. "
+        f"Utilise uniquement {report_year} dans ton texte — ne mentionne jamais une autre année.\n\n"
+        if report_year
+        else ""
+    )
 
     if conclusion_stats:
         n_periods = len(df) if df is not None else "?"
@@ -626,6 +648,7 @@ def generate_summary(
             for s in conclusion_stats
         )
         prompt = (
+            f"{year_instruction}"
             f"Synthèse d'un rapport de performance sur {n_periods} périodes "
             f"({period_start} → {period_end}).\n\n"
             f"Évolutions clés :\n{evolutions}\n\n"
@@ -643,6 +666,7 @@ def generate_summary(
             },
         }
         prompt = (
+            f"{year_instruction}"
             "Génère une conclusion finale orientée décision à partir du JSON fourni.\n"
             "Structure : points forts, points de vigilance, recommandation concrète.\n"
             "Ton direct, 3-4 phrases max, pour un dirigeant.\n"
@@ -790,6 +814,7 @@ def generate_texts_ai(
     style: str = DEFAULT_STYLE,
     df: Optional[pd.DataFrame] = None,
     axis_column: Optional[str] = None,
+    report_title: Optional[str] = None,
 ) -> Dict[str, Any]:
     analysis_results = analysis_results or {}
     plots = _extract_plots(visualization_plan)
@@ -848,6 +873,7 @@ def generate_texts_ai(
             provider=provider,
             df=df,
             axis_column=axis_column,
+            report_title=report_title,
         )
 
         return {

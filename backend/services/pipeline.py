@@ -142,6 +142,7 @@ def pipeline_run(
             use_ai=use_ai_texts,
             api_key=api_key if api_key and use_ai_texts else None,
             df=df,
+            report_title=title,
         )
         # Expose si l'IA a dû tomber en fallback
         if texts_ai.get("_fallback"):
@@ -208,6 +209,7 @@ def _generate_texts_with_module_h(
     use_ai: bool,
     api_key: Optional[str],
     df=None,
+    report_title: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Appelle Module H en gérant la clé OpenAI et les fallback nécessaires."""
 
@@ -218,11 +220,11 @@ def _generate_texts_with_module_h(
     try:
         if not use_ai:
             os.environ.pop(env_var, None)
-            return generate_texts_ai(analysis, viz_plan, style=style, df=df, axis_column=axis_column)
+            return generate_texts_ai(analysis, viz_plan, style=style, df=df, axis_column=axis_column, report_title=report_title)
         if api_key:
             os.environ[env_var] = api_key
         # Sinon : on laisse la variable telle quelle pour utiliser une clé déjà fournie.
-        return generate_texts_ai(analysis, viz_plan, style=style, df=df, axis_column=axis_column)
+        return generate_texts_ai(analysis, viz_plan, style=style, df=df, axis_column=axis_column, report_title=report_title)
     finally:
         if previous_value is not None:
             os.environ[env_var] = previous_value
