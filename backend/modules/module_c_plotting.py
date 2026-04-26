@@ -14,6 +14,8 @@ import matplotlib
 matplotlib.use("Agg")  # backend non graphique (serveur mutualisé)
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import numpy as np
 import pandas as pd
 
 DEFAULT_COLORS = ["#2563EB", "#16A34A", "#F97316", "#9333EA", "#F43F5E"]
@@ -131,6 +133,85 @@ def plot_heatmap(matrix: pd.DataFrame, output_path: Path, title: str = "Heatmap"
     _finalize_plot(fig, output_path)
 
 
+def plot_line_with_axis(
+    df: pd.DataFrame, col: str, x_col: str, output_path: Path, title: str | None = None
+) -> None:
+    """Line chart for a numeric column using a label column (e.g. Mois) as X-axis."""
+    x = df[x_col].astype(str)
+    y = pd.to_numeric(df[col], errors="coerce")
+
+    if y.dropna().empty:
+        raise ValueError(f"Aucune valeur numérique pour la colonne {col}.")
+
+    fig, ax = _init_figure(figsize=(10, 5))
+    positions = list(range(len(x)))
+    ax.plot(positions, y.values, color=DEFAULT_COLORS[0], linewidth=2, marker="o", markersize=6)
+    ax.fill_between(positions, y.values, alpha=0.1, color=DEFAULT_COLORS[0])
+    ax.set_xticks(positions)
+    ax.set_xticklabels(list(x), rotation=45, ha="right", fontsize=9)
+    ax.set_title(
+        title or f"Évolution de {col.replace('_', ' ')}",
+        fontsize=13,
+        fontweight="bold",
+        pad=12,
+    )
+    ax.set_ylabel(col.replace("_", " "), fontsize=10)
+    ax.set_xlabel(x_col.replace("_", " "), fontsize=10)
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    _finalize_plot(fig, output_path)
+
+
+def plot_scatter_with_trend(
+    df: pd.DataFrame, col_x: str, col_y: str, label_col: str | None, output_path: Path
+) -> None:
+    """Scatter plot between two numeric columns with a trend line and optional point labels."""
+    x = pd.to_numeric(df[col_x], errors="coerce")
+    y = pd.to_numeric(df[col_y], errors="coerce")
+
+    if x.dropna().empty or y.dropna().empty:
+        raise ValueError(f"Données insuffisantes pour le scatter {col_x} vs {col_y}.")
+
+    fig, ax = _init_figure(figsize=(10, 5))
+    ax.scatter(x, y, color=DEFAULT_COLORS[3], s=80, alpha=0.8, edgecolors="white", linewidth=0.8)
+
+    mask = x.notna() & y.notna()
+    if mask.sum() >= 2:
+        z = np.polyfit(x[mask], y[mask], 1)
+        p = np.poly1d(z)
+        x_line = np.linspace(float(x.min()), float(x.max()), 100)
+        ax.plot(
+            x_line, p(x_line), "--",
+            color=DEFAULT_COLORS[4], alpha=0.7, linewidth=1.5, label="Tendance"
+        )
+
+    if label_col and label_col in df.columns:
+        for i, label in enumerate(df[label_col]):
+            if pd.notna(x.iloc[i]) and pd.notna(y.iloc[i]):
+                ax.annotate(
+                    str(label),
+                    (x.iloc[i], y.iloc[i]),
+                    textcoords="offset points",
+                    xytext=(5, 5),
+                    fontsize=7,
+                    alpha=0.8,
+                )
+
+    ax.set_xlabel(col_x.replace("_", " "), fontsize=10)
+    ax.set_ylabel(col_y.replace("_", " "), fontsize=10)
+    ax.set_title(
+        f"{col_x.replace('_', ' ')} vs {col_y.replace('_', ' ')}",
+        fontsize=13,
+        fontweight="bold",
+        pad=12,
+    )
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    ax.grid(linestyle="--", alpha=0.3)
+    ax.legend(fontsize=8)
+    _finalize_plot(fig, output_path)
+
+
 # ----------------------------- internal helpers ---------------------------- #
 
 def _plot_single(series: pd.Series, column_type: str, graph_type: str, output_file: Path) -> None:
@@ -178,21 +259,32 @@ def _plot_single(series: pd.Series, column_type: str, graph_type: str, output_fi
 
 
 def _handle_relations(
-    df: pd.DataFrame, analysis: Dict[str, Any], output_path: Path, output: Dict[str, List[Dict[str, Any]]]
+    df: pd.DataFrame,
+    analysis: Dict[str, Any],
+    output_path: Path,
+    output: Dict[str, List[Dict[str, Any]]],
+    axis_column: str | None = None,
 ) -> None:
     relations = analysis.get("relations", {})
+    seen_pairs: set = set()
+
+    # Correlations -> scatter plot with trend line (replaces correlation heatmap)
     for relation in relations.get("correlations", []):
         cols = relation.get("columns", [])
         if len(cols) != 2:
             continue
-        matrix = df[list(cols)].corr()
-        file_path = output_path / f"{'_'.join(cols)}__correlation_heatmap.png"
+        pair = tuple(sorted(cols))
+        if pair in seen_pairs:
+            continue
+        seen_pairs.add(pair)
+        col_x, col_y = cols[0], cols[1]
+        file_path = output_path / f"{col_x}+{col_y}__scatter.png"
         try:
-            plot_heatmap(matrix, file_path, title="Corrélations")
+            plot_scatter_with_trend(df, col_x, col_y, axis_column, file_path)
             output["plots"].append(
                 {
-                    "column": "+".join(cols),
-                    "graph_type": "correlation_heatmap",
+                    "column": f"{col_x}+{col_y}",
+                    "graph_type": "scatter_trend",
                     "file_path": str(file_path),
                     "correlation": relation.get("value"),
                     "columns": list(cols),
@@ -200,13 +292,18 @@ def _handle_relations(
             )
         except Exception as exc:  # pylint: disable=broad-except
             output["errors"].append(
-                {"column": "+".join(cols), "graph_type": "correlation_heatmap", "reason": str(exc)}
+                {"column": f"{col_x}+{col_y}", "graph_type": "scatter_trend", "reason": str(exc)}
             )
 
+    # Categorical pairs -> heatmap, but skip pairs already covered by correlations
     for pair in relations.get("categorical_pairs", []):
         cols = pair.get("columns", [])
         if len(cols) != 2:
             continue
+        pair_key = tuple(sorted(cols))
+        if pair_key in seen_pairs:
+            continue
+        seen_pairs.add(pair_key)
         pivot = pd.crosstab(df[cols[0]], df[cols[1]])
         if pivot.size == 0 or pivot.shape[0] > 30 or pivot.shape[1] > 30:
             continue
@@ -296,6 +393,7 @@ def generate_plots(df: pd.DataFrame, analysis: Dict[str, Any], output_dir: str) 
 
     column_types = analysis.get("column_types", {})
     candidates = analysis.get("visualization_candidates", {})
+    axis_column = analysis.get("axis_column")
 
     for column, graph_types in candidates.items():
         series = df.get(column)
@@ -306,7 +404,10 @@ def generate_plots(df: pd.DataFrame, analysis: Dict[str, Any], output_dir: str) 
         for graph_type in graph_types:
             output_file = output_path / f"{column}__{graph_type}.png"
             try:
-                _plot_single(series, column_types.get(column, ""), graph_type, output_file)
+                if graph_type == "linechart_with_axis" and axis_column and axis_column in df.columns:
+                    plot_line_with_axis(df, column, axis_column, output_file)
+                else:
+                    _plot_single(series, column_types.get(column, ""), graph_type, output_file)
                 output["plots"].append(
                     {"column": column, "graph_type": graph_type, "file_path": str(output_file)}
                 )
@@ -315,5 +416,5 @@ def generate_plots(df: pd.DataFrame, analysis: Dict[str, Any], output_dir: str) 
                     {"column": column, "graph_type": graph_type, "reason": str(exc)}
                 )
 
-    _handle_relations(df, analysis, output_path, output)
+    _handle_relations(df, analysis, output_path, output, axis_column)
     return output

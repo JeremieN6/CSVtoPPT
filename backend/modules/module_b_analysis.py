@@ -68,31 +68,36 @@ def infer_column_type(series: pd.Series) -> str:
 
 
 def detect_visualization_options(
-    dataframe: pd.DataFrame, column_types: Dict[str, str]
+    dataframe: pd.DataFrame, column_types: Dict[str, str], axis_column: str | None = None
 ) -> Dict[str, List[str]]:
     """List per-column chart types that make sense without generating them.
-    
+
     Returns ONE optimal chart type per column to avoid slide duplicates.
     """
 
     candidates: Dict[str, List[str]] = {}
 
     for column, col_type in column_types.items():
+        if column == axis_column:
+            continue  # The axis column is used as X-axis, not plotted on its own
         if _should_skip_visualization(column, dataframe[column], col_type):
             continue
-        
+
         # Select ONE best chart type per column to avoid duplicates
         best_chart = None
-        if col_type == "numeric_continuous":
-            # Prefer histogram for distributions
-            best_chart = "histogram"
-        elif col_type == "numeric_discrete":
-            best_chart = "barchart"
+        if col_type in {"numeric_continuous", "numeric_discrete"}:
+            if axis_column:
+                # Use ordered line chart when a label column (e.g. Mois) is available
+                best_chart = "linechart_with_axis"
+            elif col_type == "numeric_continuous":
+                best_chart = "histogram"
+            else:
+                best_chart = "barchart"
         elif col_type in {"categorical", "boolean"}:
             best_chart = "barchart"
         elif col_type == "date":
             best_chart = "linechart"
-        
+
         if best_chart:
             candidates[column] = [best_chart]
     return candidates
@@ -321,12 +326,53 @@ def _should_skip_visualization(column_name: str, series: pd.Series, column_type:
         return True
     return False
 
+def _looks_like_period_labels(series: pd.Series) -> bool:
+    """Return True if the series contains month names or common period labels."""
+    MONTH_NAMES = {
+        "janvier", "février", "mars", "avril", "mai", "juin",
+        "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+        "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december",
+        "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+    }
+    non_na = series.dropna()
+    if non_na.empty:
+        return False
+    sample = {str(v).strip().lower() for v in non_na.head(15)}
+    return bool(sample & MONTH_NAMES)
+
+
+def detect_axis_column(df: pd.DataFrame, column_types: Dict[str, str]) -> str | None:
+    """Return the best column to use as the X-axis (e.g. Mois, Date, Trimestre)."""
+    # Priority 1: explicit date column
+    for col, typ in column_types.items():
+        if typ == "date":
+            return col
+    # Priority 2: string column whose values look like month/period names
+    for col in df.columns:
+        series = df[col]
+        if pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
+            if _looks_like_period_labels(series):
+                return col
+    # Priority 3: string identifier or categorical column with few unique values
+    # (likely an ordered label column like Mois with unique_ratio == 1.0)
+    for col, typ in column_types.items():
+        if typ in {"identifier", "categorical"}:
+            series = df[col]
+            if pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
+                if series.nunique(dropna=True) <= 30:
+                    return col
+    return None
+
+
 def analyze_dataset(df: pd.DataFrame, diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     column_types = {column: infer_column_type(df[column]) for column in df.columns}
+    axis_column = detect_axis_column(df, column_types)
 
     return {
         "column_types": column_types,
-        "visualization_candidates": detect_visualization_options(df, column_types),
+        "axis_column": axis_column,
+        "visualization_candidates": detect_visualization_options(df, column_types, axis_column),
         "relations": detect_relations(df, column_types),
         "issues": detect_issues(df, column_types, diagnostic),
     }
