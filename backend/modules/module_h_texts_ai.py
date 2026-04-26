@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from importlib import import_module
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
+
 logger = logging.getLogger(__name__)
 
 try:  # Optional dependency: le module doit rester importable sans openai
@@ -367,6 +369,81 @@ def _insight_guidance_for_dtype(dtype_key: str) -> str:
     return "Inspectez les termes les plus fréquents pour comprendre les thèmes récurrents."
 
 
+def _compute_numeric_trend(df: pd.DataFrame, col: str, axis_col: Optional[str] = None) -> Dict[str, Any]:
+    """Compute trend stats for a numeric column: direction, pct change, labels for min/max."""
+    try:
+        values = pd.to_numeric(df[col], errors="coerce")
+        valid = values.dropna()
+        if len(valid) < 2:
+            return {}
+        n = len(valid)
+        first_half_avg = float(valid.iloc[: n // 2].mean())
+        second_half_avg = float(valid.iloc[n // 2 :].mean())
+        pct_half = (
+            (second_half_avg - first_half_avg) / abs(first_half_avg) * 100
+            if first_half_avg != 0
+            else 0.0
+        )
+        trend = "hausse" if pct_half > 1 else "baisse" if pct_half < -1 else "stable"
+
+        start_val = float(valid.iloc[0])
+        end_val = float(valid.iloc[-1])
+        total_pct = (end_val - start_val) / abs(start_val) * 100 if start_val != 0 else 0.0
+
+        # Min / max labels via axis column
+        min_label, max_label = "", ""
+        if axis_col and axis_col in df.columns:
+            idx_min = values.idxmin()
+            idx_max = values.idxmax()
+            if pd.notna(idx_min):
+                min_label = str(df[axis_col].iloc[int(idx_min)])
+            if pd.notna(idx_max):
+                max_label = str(df[axis_col].iloc[int(idx_max)])
+
+        return {
+            "trend": trend,
+            "pct_change_half": round(abs(pct_half), 1),
+            "total_pct_change": round(total_pct, 1),
+            "start_value": round(start_val, 2),
+            "end_value": round(end_val, 2),
+            "min_val": round(float(valid.min()), 2),
+            "max_val": round(float(valid.max()), 2),
+            "mean_val": round(float(valid.mean()), 2),
+            "min_label": min_label,
+            "max_label": max_label,
+        }
+    except Exception:  # pragma: no cover
+        return {}
+
+
+def _compute_conclusion_stats(df: pd.DataFrame, axis_col: Optional[str]) -> List[Dict[str, Any]]:
+    """Compute overall % evolution per numeric column for the conclusion prompt."""
+    result: List[Dict[str, Any]] = []
+    try:
+        period_start = str(df[axis_col].iloc[0]) if axis_col and axis_col in df.columns else None
+        period_end = str(df[axis_col].iloc[-1]) if axis_col and axis_col in df.columns else None
+        for col in df.select_dtypes(include="number").columns:
+            vals = pd.to_numeric(df[col], errors="coerce").dropna()
+            if len(vals) < 2:
+                continue
+            start = float(vals.iloc[0])
+            end = float(vals.iloc[-1])
+            pct = (end - start) / abs(start) * 100 if start != 0 else 0.0
+            result.append(
+                {
+                    "col": col,
+                    "pct_change": round(pct, 1),
+                    "start": round(start, 2),
+                    "end": round(end, 2),
+                    "period_start": period_start,
+                    "period_end": period_end,
+                }
+            )
+    except Exception:  # pragma: no cover
+        pass
+    return result
+
+
 def _local_column_text(column: str, metadata: Dict[str, Any]) -> Dict[str, str]:
     profile = metadata.get("profile", {}) or {}
     dtype_key = (profile.get("column_type") or profile.get("dtype") or "colonne").lower()
@@ -409,10 +486,12 @@ def generate_column_text(
     client: Any,
     config: AIModelConfig,
     provider: str = "openai",
+    df: Optional[pd.DataFrame] = None,
+    axis_column: Optional[str] = None,
 ) -> Dict[str, str]:
     graph_types = sorted({plot.get("graph_type", "?") for plot in plots})
 
-    # Bivariate / correlation column (name = "ColA+ColB")
+    # ── Bivariate / correlation column (name = "ColA+ColB") ─────────────────
     if "+" in column:
         col_parts = column.split("+", 1)
         col_a, col_b = col_parts[0].strip(), col_parts[1].strip()
@@ -420,74 +499,83 @@ def generate_column_text(
             (p.get("correlation") for p in plots if p.get("correlation") is not None),
             None,
         )
-        # Enrich with numeric stats from each column's diagnostic profile
-        diag_cols = (analysis_results or {}).get("diagnostic", {}).get("columns", {})
-        all_column_types = (analysis_results or {}).get("column_types", {})
-        profile_a = diag_cols.get(col_a, {})
-        profile_b = diag_cols.get(col_b, {})
-        payload = {
-            "columns": [col_a, col_b],
-            "correlation": corr_value,
-            "graph_type": graph_types,
-            "profile_a": {
-                "min": profile_a.get("min"),
-                "max": profile_a.get("max"),
-                "mean": profile_a.get("mean"),
-                "max_label": profile_a.get("max_label"),
-                "label_column": profile_a.get("label_column"),
-            },
-            "profile_b": {
-                "min": profile_b.get("min"),
-                "max": profile_b.get("max"),
-                "mean": profile_b.get("mean"),
-            },
-            "dataset_column_types": all_column_types,
-        }
+        r = corr_value if corr_value is not None else 0.0
+        if abs(r) >= 0.90:
+            strength = "quasi-parfaite"
+        elif abs(r) >= 0.70:
+            strength = "forte"
+        elif abs(r) >= 0.50:
+            strength = "modérée"
+        else:
+            strength = "faible"
+        direction = "positive" if r >= 0 else "négative"
+
         prompt = (
-            "Tu analyses la relation entre deux variables d'un jeu de données décrit en JSON.\n"
-            "Écris en français, ton professionnel, sans liste à puces.\n"
-            "\n"
-            "CONSIGNES :\n"
-            "1. Dans 'analysis' (2 phrases) : décris la relation en mots, pas seulement en chiffres.\n"
-            "   Traduis la valeur r en langage naturel selon cette échelle :\n"
-            "   |r| ≥ 0.90 → 'relation quasi-parfaite' | 0.70-0.89 → 'forte' | 0.50-0.69 → 'modérée'.\n"
-            "   Cite direction (positive/négative) et les chiffres réels si disponibles.\n"
-            "2. Dans 'insights' (1-2 phrases) : interprète intelligemment ce que cela signifie.\n"
-            "   Si 'dataset_column_types' contient une colonne de type 'date' ou temporelle,\n"
-            "   mentionne que les deux variables pourraient évoluer en parallèle sous l'effet\n"
-            "   d'une tendance commune (ex : croissance dans le temps) plutôt qu'un lien causal direct.\n"
-            "   Sinon, propose l'explication la plus logique du lien entre ces deux variables.\n"
-            "   Conclus par ce que cela implique concrètement dans ce contexte de données.\n"
-            "3. N'invente jamais de chiffres absents du JSON. N'écris pas de phrases vides.\n"
-            "Réponds en JSON avec uniquement les clés 'analysis' et 'insights'.\n"
-            f"JSON: {json.dumps(payload, ensure_ascii=False)}"
+            f"Corrélation {direction} {strength} (r = {r:.2f}) entre '{col_a}' et '{col_b}'.\n\n"
+            "Écris en JSON avec deux clés :\n"
+            "- 'analysis' (1 phrase) : décris la relation en termes business concrets — "
+            "traduis la force de la corrélation en mots, pas en chiffres bruts.\n"
+            "- 'insights' (1-2 phrases) : quelle implication opérationnelle ? "
+            "Si les deux variables croissent en parallèle dans le temps, précise que c'est "
+            "peut-être lié à une tendance commune plutôt qu'un lien causal direct. "
+            "Conclus par ce que ça implique concrètement (coût, opportunité, risque).\n"
+            "Interdiction : pas de jargon statistique, pas de 'il est recommandé', "
+            "parle comme un consultant senior."
         )
     else:
-        payload = {
-            "column": column,
-            "profile": column_meta,
-            "graph_types": graph_types,
-            "issues": _column_issues(column, analysis_results),
-            "notable_values": column_meta.get("sample", column_meta.get("examples")),
-            "missing_percent": column_meta.get("missing_percent"),
-            "min": column_meta.get("min"),
-            "max": column_meta.get("max"),
-            "mean": column_meta.get("mean"),
-            "max_label": column_meta.get("max_label"),
-            "min_label": column_meta.get("min_label"),
-            "label_column": column_meta.get("label_column"),
-        }
-        prompt = (
-            "Analyse uniquement la colonne décrite par le JSON ci-dessous, en te basant sur ce que le graphique montre.\n"
-            "Écris en français, ton neutre professionnel, sans liste à puces.\n"
-            "Structure attendue :\n"
-            "- 'analysis' : 2 à 3 phrases descriptives du graphique (répartition, ordre des catégories, évolution, valeurs dominantes ou contrastes). "
-            "Si min/max/mean sont fournis, cite-les. Si max_label et label_column sont fournis, mentionne quelle valeur correspond au maximum.\n"
-            "- 'insights' : 1 à 2 phrases d'interprétation métier directement liées aux observations (impact ou opportunité). Pas de formulations génériques ni de 'il est recommandé'.\n"
-            "Interdictions : ne jamais écrire 'Aucune anomalie détectable', 'aucune anomalie', ni inventer de chiffres absents du JSON.\n"
-            "Réponds en JSON avec uniquement les clés 'analysis' et 'insights'.\n"
-            f"JSON: {json.dumps(payload, ensure_ascii=False)}"
+        # ── Single numeric column — use computed stats if df is available ───
+        trend_stats = _compute_numeric_trend(df, column, axis_column) if df is not None else {}
+        diag_cols = (analysis_results or {}).get("diagnostic", {}).get("columns", {})
+        col_type = (analysis_results or {}).get("column_types", {}).get(column, "")
+        axis_col_val = (
+            f"{df[axis_column].iloc[0]} à {df[axis_column].iloc[-1]}"
+            if axis_column and df is not None and axis_column in df.columns
+            else "inconnue"
         )
+
+        if trend_stats:
+            prompt = (
+                "Tu analyses une colonne d'un rapport de performance business.\n\n"
+                f"Colonne : {column} | Type : {_friendly_dtype(col_type)}\n"
+                f"Période couverte : {axis_col_val}\n"
+                f"Min : {trend_stats['min_val']}"
+                + (f" ({trend_stats['min_label']})" if trend_stats.get("min_label") else "")
+                + f" | Max : {trend_stats['max_val']}"
+                + (f" ({trend_stats['max_label']})" if trend_stats.get("max_label") else "")
+                + f" | Moyenne : {trend_stats['mean_val']}\n"
+                f"Évolution totale : {trend_stats['start_value']} → {trend_stats['end_value']} "
+                f"({trend_stats['total_pct_change']:+.1f}%)\n"
+                f"Tendance sur la période : en {trend_stats['trend']} "
+                f"de {trend_stats['pct_change_half']:.0f}% entre la 1re et la 2e moitié\n\n"
+                "Écris en JSON avec deux clés :\n"
+                "- 'analysis' (2 phrases max) : tendance principale + valeurs remarquables. "
+                "Mentionne la progression ou le pic si pertinent.\n"
+                "- 'insights' (1-2 phrases) : interprétation business actionnable. "
+                "Qu'est-ce qui est notable ou à surveiller ? Aucune reformulation des chiffres bruts. "
+                "Pas de formulations génériques type 'les données montrent'. "
+                "Parle comme un consultant orienté décision."
+            )
+        else:
+            # Fallback when df is not available or column is non-numeric
+            payload = {
+                "column": column,
+                "profile": column_meta,
+                "graph_types": graph_types,
+                "issues": _column_issues(column, analysis_results),
+                "min": column_meta.get("min"),
+                "max": column_meta.get("max"),
+                "mean": column_meta.get("mean"),
+                "max_label": column_meta.get("max_label"),
+                "min_label": column_meta.get("min_label"),
+            }
+            prompt = (
+                "Analyse uniquement la colonne décrite par le JSON ci-dessous.\n"
+                "Écris en français, ton professionnel.\n"
+                "- 'analysis' : 2 phrases descriptives (tendance, valeurs dominantes).\n"
+                "- 'insights' : 1-2 phrases d'interprétation métier concrète. Pas de formulations génériques.\n"
+                "Réponds en JSON avec uniquement les clés 'analysis' et 'insights'.\n"
+                f"JSON: {json.dumps(payload, ensure_ascii=False)}"
+            )
 
     response = _call_ai_json(client, provider, config, style, prompt)
     if not all(key in response for key in ("analysis", "insights")):
@@ -524,19 +612,44 @@ def generate_summary(
     client: Any,
     config: AIModelConfig,
     provider: str = "openai",
+    df: Optional[pd.DataFrame] = None,
+    axis_column: Optional[str] = None,
 ) -> str:
-    condensed = {
-        "dataset": dataset_context,
-        "highlights": {
-            column: texts.get("insights") for column, texts in per_column.items()
-        },
-    }
-    prompt = (
-        "Génère une synthèse finale à partir du JSON fourni.\n"
-        "Structure : rappel rapide du périmètre + 2 à 3 enseignements + prochaine étape.\n"
-        f"JSON: {json.dumps(condensed, ensure_ascii=False)}\n"
-        "Réponds en JSON avec la clé unique 'text'."
-    )
+    conclusion_stats = _compute_conclusion_stats(df, axis_column) if df is not None else []
+
+    if conclusion_stats:
+        n_periods = len(df) if df is not None else "?"
+        period_start = conclusion_stats[0].get("period_start") or "début"
+        period_end = conclusion_stats[0].get("period_end") or "fin"
+        evolutions = "\n".join(
+            f"- {s['col']} : {s['pct_change']:+.0f}% ({s['start']} → {s['end']})"
+            for s in conclusion_stats
+        )
+        prompt = (
+            f"Synthèse d'un rapport de performance sur {n_periods} périodes "
+            f"({period_start} → {period_end}).\n\n"
+            f"Évolutions clés :\n{evolutions}\n\n"
+            "Écris une conclusion de 3-4 phrases pour un dirigeant.\n"
+            "Structure : 1 phrase sur les points forts, 1 sur les points de vigilance, "
+            "1 recommandation concrète pour la suite.\n"
+            "Ton direct, orienté action. Pas de liste à puces. Pas de répétition des chiffres bruts.\n"
+            "Réponds en JSON avec la clé unique 'text'."
+        )
+    else:
+        condensed = {
+            "dataset": dataset_context,
+            "highlights": {
+                column: texts.get("insights") for column, texts in per_column.items()
+            },
+        }
+        prompt = (
+            "Génère une conclusion finale orientée décision à partir du JSON fourni.\n"
+            "Structure : points forts, points de vigilance, recommandation concrète.\n"
+            "Ton direct, 3-4 phrases max, pour un dirigeant.\n"
+            f"JSON: {json.dumps(condensed, ensure_ascii=False)}\n"
+            "Réponds en JSON avec la clé unique 'text'."
+        )
+
     response = _call_ai_json(client, provider, config, style, prompt)
     if "text" not in response or not str(response.get("text", "")).strip():
         raise AIGenerationError("Réponse JSON invalide pour la synthèse.")
@@ -675,6 +788,8 @@ def generate_texts_ai(
     analysis_results: Optional[Dict[str, Any]],
     visualization_plan: Optional[Any],
     style: str = DEFAULT_STYLE,
+    df: Optional[pd.DataFrame] = None,
+    axis_column: Optional[str] = None,
 ) -> Dict[str, Any]:
     analysis_results = analysis_results or {}
     plots = _extract_plots(visualization_plan)
@@ -682,7 +797,10 @@ def generate_texts_ai(
     if style_key not in STYLE_PRESETS:
         style_key = DEFAULT_STYLE
 
-    api_key = os.getenv("OPENAI_API_KEY")
+    # Resolve axis_column from analysis if not passed explicitly
+    if axis_column is None:
+        axis_column = (analysis_results or {}).get("axis_column")
+
     model_override = os.getenv("OPENAI_TEXT_MODEL")
     config = AIModelConfig(model=model_override or AIModelConfig.model)
 
@@ -710,6 +828,8 @@ def generate_texts_ai(
                 client,
                 config,
                 provider=provider,
+                df=df,
+                axis_column=axis_column,
             )
 
         correlations_texts: List[Dict[str, Any]] = []
@@ -719,7 +839,16 @@ def generate_texts_ai(
             correlations_texts.append({"cols": correlation.get("columns", []), "text": text})
 
         global_intro = generate_global_intro(dataset_context, style_key, client, config, provider=provider)
-        global_summary = generate_summary(dataset_context, per_column, style_key, client, config, provider=provider)
+        global_summary = generate_summary(
+            dataset_context,
+            per_column,
+            style_key,
+            client,
+            config,
+            provider=provider,
+            df=df,
+            axis_column=axis_column,
+        )
 
         return {
             "global_intro": global_intro,
