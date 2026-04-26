@@ -145,7 +145,7 @@ async def generate_report(
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         )
         if warnings:
-            response.headers["X-Report-Warnings"] = " | ".join(warnings[:5])
+            response.headers["X-Report-Warnings"] = " | ".join(warnings[:5]).encode("latin-1", errors="replace").decode("latin-1")
 
         posthog.capture(
             "anonymous",
@@ -244,7 +244,7 @@ async def convert_dataset(
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         )
         if warnings:
-            response.headers["X-Report-Warnings"] = " | ".join(warnings[:5])
+            response.headers["X-Report-Warnings"] = " | ".join(warnings[:5]).encode("latin-1", errors="replace").decode("latin-1")
 
         background_tasks.add_task(utils.safe_delete_file, ppt_path)
 

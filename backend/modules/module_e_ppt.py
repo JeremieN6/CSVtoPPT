@@ -110,7 +110,13 @@ def create_title_slide(prs: Presentation, title: str, theme_cfg: Dict[str, Any],
     p.alignment = theme_cfg.get("title_align", PP_ALIGN.LEFT)
 
     subtitle = options.get("subtitle") or "Rapport généré automatiquement"
-    date_str = datetime.now().strftime("%d %B %Y")
+    _FR_MONTHS = {
+        1: "janvier", 2: "février", 3: "mars", 4: "avril",
+        5: "mai", 6: "juin", 7: "juillet", 8: "août",
+        9: "septembre", 10: "octobre", 11: "novembre", 12: "décembre",
+    }
+    _now = datetime.now()
+    date_str = f"{_now.day} {_FR_MONTHS[_now.month]} {_now.year}"
     subtitle_box = slide.shapes.add_textbox(left=Inches(0.7), top=Inches(2.7), width=width - Inches(1.4), height=Inches(1.0))
     subtitle_frame = subtitle_box.text_frame
     subtitle_frame.text = f"{subtitle} — {date_str}"

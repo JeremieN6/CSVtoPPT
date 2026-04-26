@@ -194,6 +194,8 @@ def _handle_relations(
                     "column": "+".join(cols),
                     "graph_type": "correlation_heatmap",
                     "file_path": str(file_path),
+                    "correlation": relation.get("value"),
+                    "columns": list(cols),
                 }
             )
         except Exception as exc:  # pylint: disable=broad-except

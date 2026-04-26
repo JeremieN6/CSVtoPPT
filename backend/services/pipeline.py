@@ -121,7 +121,7 @@ def pipeline_run(
         _check_timeout()
         text_style = plan_params.get("ai_style") or additional_options.get("text_style") or "lite"
 
-        env_api_key = api_key or os.getenv("OPENAI_API_KEY")
+        env_api_key = api_key or os.getenv("OPENAI_API_KEY") or os.getenv("CLAUDE_API_KEY")
         auto_enable_ai = bool(env_api_key)
 
         force_fallback = bool(plan_params.get("force_fallback") or additional_options.get("force_fallback"))
@@ -142,6 +142,9 @@ def pipeline_run(
             use_ai=use_ai_texts,
             api_key=api_key if api_key and use_ai_texts else None,
         )
+        # Expose si l'IA a dû tomber en fallback
+        if texts_ai.get("_fallback"):
+            warnings.append(f"Génération IA indisponible ({texts_ai.get('_fallback_reason', 'erreur inconnue')}) - textes générés en mode automatique.")
         texts_for_ppt = _prepare_texts_for_presentation(texts_ai, plots)
 
         ppt_filename = build_generated_filename(title)

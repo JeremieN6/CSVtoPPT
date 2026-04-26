@@ -141,7 +141,7 @@ def _ensure_dataframe_is_usable(dataframe: pd.DataFrame) -> None:
 
 def _build_diagnostic(dataframe: pd.DataFrame) -> Dict[str, Any]:
     num_rows, num_cols = dataframe.shape
-    columns_info = {}
+    columns_info: Dict[str, Any] = {}
     for column in dataframe.columns:
         series = dataframe[column]
         missing = int(series.isna().sum())
@@ -152,11 +152,48 @@ def _build_diagnostic(dataframe: pd.DataFrame) -> Dict[str, Any]:
             "missing_percent": missing_percent,
             "unique_values": int(series.nunique(dropna=True)),
         }
+
+    # Identify a label column (date or low-cardinality categorical) for cross-column insights
+    label_col = _find_label_column(dataframe, columns_info)
+
+    # Enrich numeric columns with stats and cross-column highlights
+    for column in dataframe.columns:
+        info = columns_info[column]
+        if info["dtype"] != "numerique":
+            continue
+        numeric = pd.to_numeric(dataframe[column], errors="coerce").dropna()
+        if numeric.empty:
+            continue
+        info["min"] = round(float(numeric.min()), 2)
+        info["max"] = round(float(numeric.max()), 2)
+        info["mean"] = round(float(numeric.mean()), 2)
+        info["median"] = round(float(numeric.median()), 2)
+        if label_col and label_col != column:
+            info["label_column"] = label_col
+            # Row index in the original (non-NaN) slice that has max/min
+            valid_mask = pd.to_numeric(dataframe[column], errors="coerce").notna()
+            valid_df = dataframe[valid_mask]
+            idxmax = pd.to_numeric(valid_df[column], errors="coerce").idxmax()
+            idxmin = pd.to_numeric(valid_df[column], errors="coerce").idxmin()
+            info["max_label"] = str(valid_df.loc[idxmax, label_col])
+            info["min_label"] = str(valid_df.loc[idxmin, label_col])
+
     return {
         "num_rows": num_rows,
         "num_cols": num_cols,
         "columns": columns_info,
     }
+
+
+def _find_label_column(dataframe: pd.DataFrame, columns_info: Dict[str, Any]) -> Optional[str]:
+    """Return the most suitable label column (date first, then low-cardinality categorical)."""
+    for col, info in columns_info.items():
+        if info["dtype"] == "date":
+            return col
+    for col, info in columns_info.items():
+        if info["dtype"] == "categorie" and info["unique_values"] <= 30:
+            return col
+    return None
 
 
 def _safe_percentage(value: int, total: int) -> float:

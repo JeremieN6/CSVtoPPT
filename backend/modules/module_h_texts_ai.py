@@ -3,22 +3,35 @@
 Ce module se situe entre l'analyse automatique (Module B) et la génération de la
 présentation (Module E). Il consomme les résultats d'analyse ainsi que la liste
 des graphiques prévus, puis produit des textes professionnels structurés prêts
-à être injectés dans les slides. L'appel à l'API OpenAI est optionnel : en cas
+à être injectés dans les slides. L'appel à l'API IA est optionnel : en cas
 d'absence de clé ou d'erreur, on revient automatiquement sur Module D.
+
+Fournisseurs supportés (par ordre de priorité) :
+  1. Claude (Anthropic) via CLAUDE_API_KEY
+  2. OpenAI via OPENAI_API_KEY
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass
 from importlib import import_module
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 try:  # Optional dependency: le module doit rester importable sans openai
     _openai_module = import_module("openai")
     _OpenAIClient = getattr(_openai_module, "OpenAI", None)
 except ModuleNotFoundError:  # pragma: no cover
     _OpenAIClient = None
+
+try:  # Optional dependency: Anthropic Claude
+    _anthropic_module = import_module("anthropic")
+    _AnthropicClient = getattr(_anthropic_module, "Anthropic", None)
+except ModuleNotFoundError:  # pragma: no cover
+    _AnthropicClient = None
 
 try:  # Fallback officiel Module D
     from .module_d_texts import generate_default_texts as _module_d_fallback
@@ -69,9 +82,10 @@ ISSUE_LABELS = {
 
 @dataclass
 class AIModelConfig:
-    """Paramètres d'appel OpenAI."""
+    """Paramètres d'appel IA (OpenAI ou Claude)."""
 
     model: str = "gpt-4o-mini"
+    claude_model: str = "claude-haiku-4-5-20251001"
     temperature: float = 0.4
     max_tokens: int = 380
 
@@ -80,15 +94,43 @@ class AIGenerationError(RuntimeError):
     """Erreur émise quand l'appel IA échoue."""
 
 
+# ── Provider selection ─────────────────────────────────────────────────────
+
 def _ensure_client(api_key: Optional[str]) -> Optional[Any]:
     """Instancie le client OpenAI si la dépendance et la clé sont présentes."""
-
     if _OpenAIClient is None or not api_key:
         return None
     try:
         return _OpenAIClient(api_key=api_key)
     except Exception:  # pragma: no cover
         return None
+
+
+def _ensure_claude_client(api_key: Optional[str]) -> Optional[Any]:
+    """Instancie le client Anthropic si la dépendance et la clé sont présentes."""
+    if _AnthropicClient is None or not api_key:
+        return None
+    try:
+        return _AnthropicClient(api_key=api_key)
+    except Exception:  # pragma: no cover
+        return None
+
+
+def _resolve_ai_client() -> tuple[Optional[Any], str]:
+    """Retourne (client, provider) en priorisant Claude sur OpenAI."""
+    claude_key = os.getenv("CLAUDE_API_KEY")
+    claude_client = _ensure_claude_client(claude_key)
+    if claude_client is not None:
+        logger.info("Module H: utilisation de Claude (Anthropic).")
+        return claude_client, "claude"
+
+    openai_key = os.getenv("OPENAI_API_KEY")
+    openai_client = _ensure_client(openai_key)
+    if openai_client is not None:
+        logger.info("Module H: utilisation de OpenAI.")
+        return openai_client, "openai"
+
+    return None, "none"
 
 
 def _style_prompt(style_key: str) -> str:
@@ -150,6 +192,48 @@ def _call_openai_json(
     if not isinstance(data, dict):
         raise AIGenerationError("Réponse OpenAI vide ou non JSON.")
     return data
+
+
+def _call_claude_json(
+    client: Any,
+    config: AIModelConfig,
+    style_key: str,
+    user_prompt: str,
+) -> Dict[str, Any]:
+    if client is None:
+        raise AIGenerationError("Client Claude indisponible")
+    system_prompt = _style_prompt(style_key) + " Réponds STRICTEMENT en JSON valide, sans aucun texte avant ou après."
+    try:
+        response = client.messages.create(
+            model=config.claude_model,
+            max_tokens=config.max_tokens,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+    except Exception as exc:  # pragma: no cover
+        raise AIGenerationError(f"Échec Claude: {exc}") from exc
+
+    content = (response.content[0].text if response.content else "").strip()
+    # Nettoie les blocs ```json...``` si Claude les ajoute
+    if content.startswith("```"):
+        content = content.strip("`").lstrip("json").strip()
+    data = _safe_json_loads(content)
+    if not isinstance(data, dict):
+        raise AIGenerationError("Réponse Claude vide ou non JSON.")
+    return data
+
+
+def _call_ai_json(
+    client: Any,
+    provider: str,
+    config: AIModelConfig,
+    style_key: str,
+    user_prompt: str,
+) -> Dict[str, Any]:
+    """Appel unifié : dispatche vers OpenAI ou Claude selon le provider."""
+    if provider == "claude":
+        return _call_claude_json(client, config, style_key, user_prompt)
+    return _call_openai_json(client, config, style_key, user_prompt)
 
 
 def _extract_plots(visualization_plan: Any) -> List[Dict[str, Any]]:
@@ -324,28 +408,88 @@ def generate_column_text(
     style: str,
     client: Any,
     config: AIModelConfig,
+    provider: str = "openai",
 ) -> Dict[str, str]:
     graph_types = sorted({plot.get("graph_type", "?") for plot in plots})
-    payload = {
-        "column": column,
-        "profile": column_meta,
-        "graph_types": graph_types,
-        "issues": _column_issues(column, analysis_results),
-        "notable_values": column_meta.get("sample", column_meta.get("examples")),
-        "missing_percent": column_meta.get("missing_percent"),
-    }
-    prompt = (
-        "Analyse uniquement la colonne décrite par le JSON ci-dessous, en te basant sur ce que le graphique montre.\n"
-        "Écris en français, ton neutre professionnel, sans liste à puces.\n"
-        "Structure attendue :\n"
-        "- 'analysis' : 2 à 3 phrases descriptives du graphique (répartition, ordre des catégories, évolution, valeurs dominantes ou contrastes). Pas de recommandations.\n"
-        "- 'insights' : 1 à 2 phrases d'interprétation métier directement liées aux observations (impact ou opportunité). Pas de formulations génériques ni de 'il est recommandé'.\n"
-        "Interdictions : ne jamais écrire 'Aucune anomalie détectable', 'aucune anomalie', ni de phrases vides.\n"
-        "Quand des métriques sont fournies (unique_values, missing_percent, notable_values), cite-les pour appuyer l'analyse, sans inventer de chiffres.\n"
-        "Réponds en JSON avec uniquement les clés 'analysis' et 'insights'.\n"
-        f"JSON: {json.dumps(payload, ensure_ascii=False)}"
-    )
-    response = _call_openai_json(client, config, style, prompt)
+
+    # Bivariate / correlation column (name = "ColA+ColB")
+    if "+" in column:
+        col_parts = column.split("+", 1)
+        col_a, col_b = col_parts[0].strip(), col_parts[1].strip()
+        corr_value = next(
+            (p.get("correlation") for p in plots if p.get("correlation") is not None),
+            None,
+        )
+        # Enrich with numeric stats from each column's diagnostic profile
+        diag_cols = (analysis_results or {}).get("diagnostic", {}).get("columns", {})
+        all_column_types = (analysis_results or {}).get("column_types", {})
+        profile_a = diag_cols.get(col_a, {})
+        profile_b = diag_cols.get(col_b, {})
+        payload = {
+            "columns": [col_a, col_b],
+            "correlation": corr_value,
+            "graph_type": graph_types,
+            "profile_a": {
+                "min": profile_a.get("min"),
+                "max": profile_a.get("max"),
+                "mean": profile_a.get("mean"),
+                "max_label": profile_a.get("max_label"),
+                "label_column": profile_a.get("label_column"),
+            },
+            "profile_b": {
+                "min": profile_b.get("min"),
+                "max": profile_b.get("max"),
+                "mean": profile_b.get("mean"),
+            },
+            "dataset_column_types": all_column_types,
+        }
+        prompt = (
+            "Tu analyses la relation entre deux variables d'un jeu de données décrit en JSON.\n"
+            "Écris en français, ton professionnel, sans liste à puces.\n"
+            "\n"
+            "CONSIGNES :\n"
+            "1. Dans 'analysis' (2 phrases) : décris la relation en mots, pas seulement en chiffres.\n"
+            "   Traduis la valeur r en langage naturel selon cette échelle :\n"
+            "   |r| ≥ 0.90 → 'relation quasi-parfaite' | 0.70-0.89 → 'forte' | 0.50-0.69 → 'modérée'.\n"
+            "   Cite direction (positive/négative) et les chiffres réels si disponibles.\n"
+            "2. Dans 'insights' (1-2 phrases) : interprète intelligemment ce que cela signifie.\n"
+            "   Si 'dataset_column_types' contient une colonne de type 'date' ou temporelle,\n"
+            "   mentionne que les deux variables pourraient évoluer en parallèle sous l'effet\n"
+            "   d'une tendance commune (ex : croissance dans le temps) plutôt qu'un lien causal direct.\n"
+            "   Sinon, propose l'explication la plus logique du lien entre ces deux variables.\n"
+            "   Conclus par ce que cela implique concrètement dans ce contexte de données.\n"
+            "3. N'invente jamais de chiffres absents du JSON. N'écris pas de phrases vides.\n"
+            "Réponds en JSON avec uniquement les clés 'analysis' et 'insights'.\n"
+            f"JSON: {json.dumps(payload, ensure_ascii=False)}"
+        )
+    else:
+        payload = {
+            "column": column,
+            "profile": column_meta,
+            "graph_types": graph_types,
+            "issues": _column_issues(column, analysis_results),
+            "notable_values": column_meta.get("sample", column_meta.get("examples")),
+            "missing_percent": column_meta.get("missing_percent"),
+            "min": column_meta.get("min"),
+            "max": column_meta.get("max"),
+            "mean": column_meta.get("mean"),
+            "max_label": column_meta.get("max_label"),
+            "min_label": column_meta.get("min_label"),
+            "label_column": column_meta.get("label_column"),
+        }
+        prompt = (
+            "Analyse uniquement la colonne décrite par le JSON ci-dessous, en te basant sur ce que le graphique montre.\n"
+            "Écris en français, ton neutre professionnel, sans liste à puces.\n"
+            "Structure attendue :\n"
+            "- 'analysis' : 2 à 3 phrases descriptives du graphique (répartition, ordre des catégories, évolution, valeurs dominantes ou contrastes). "
+            "Si min/max/mean sont fournis, cite-les. Si max_label et label_column sont fournis, mentionne quelle valeur correspond au maximum.\n"
+            "- 'insights' : 1 à 2 phrases d'interprétation métier directement liées aux observations (impact ou opportunité). Pas de formulations génériques ni de 'il est recommandé'.\n"
+            "Interdictions : ne jamais écrire 'Aucune anomalie détectable', 'aucune anomalie', ni inventer de chiffres absents du JSON.\n"
+            "Réponds en JSON avec uniquement les clés 'analysis' et 'insights'.\n"
+            f"JSON: {json.dumps(payload, ensure_ascii=False)}"
+        )
+
+    response = _call_ai_json(client, provider, config, style, prompt)
     if not all(key in response for key in ("analysis", "insights")):
         raise AIGenerationError("Format JSON inattendu pour l'analyse de colonne.")
     return {
@@ -360,18 +504,14 @@ def generate_global_intro(
     style: str,
     client: Any,
     config: AIModelConfig,
+    provider: str = "openai",
 ) -> str:
     prompt = (
         "À partir du résumé JSON suivant, écris une introduction de rapport.\n"
         "Mentionne le volume de données disponible s'il est fourni et les familles de colonnes.\n"
         f"JSON: {json.dumps(dataset_context, ensure_ascii=False)}"
     )
-    response = _call_openai_json(
-        client,
-        config,
-        style,
-        prompt + "\nRéponds en JSON avec la clé unique 'text'.",
-    )
+    response = _call_ai_json(client, provider, config, style, prompt + "\nRéponds en JSON avec la clé unique 'text'.")
     if "text" not in response or not str(response.get("text", "")).strip():
         raise AIGenerationError("Réponse JSON invalide pour l'introduction.")
     return str(response["text"]).strip()
@@ -383,6 +523,7 @@ def generate_summary(
     style: str,
     client: Any,
     config: AIModelConfig,
+    provider: str = "openai",
 ) -> str:
     condensed = {
         "dataset": dataset_context,
@@ -396,7 +537,7 @@ def generate_summary(
         f"JSON: {json.dumps(condensed, ensure_ascii=False)}\n"
         "Réponds en JSON avec la clé unique 'text'."
     )
-    response = _call_openai_json(client, config, style, prompt)
+    response = _call_ai_json(client, provider, config, style, prompt)
     if "text" not in response or not str(response.get("text", "")).strip():
         raise AIGenerationError("Réponse JSON invalide pour la synthèse.")
     return str(response["text"]).strip()
@@ -407,6 +548,7 @@ def generate_correlation_text(
     style: str,
     client: Any,
     config: AIModelConfig,
+    provider: str = "openai",
 ) -> str:
     payload = {
         "columns": correlation.get("columns", []),
@@ -417,7 +559,7 @@ def generate_correlation_text(
         "Réponds en JSON avec la clé 'text'.\n"
         f"JSON: {json.dumps(payload, ensure_ascii=False)}"
     )
-    response = _call_openai_json(client, config, style, prompt)
+    response = _call_ai_json(client, provider, config, style, prompt)
     if "text" not in response:
         raise AIGenerationError("Réponse JSON invalide pour la corrélation.")
     return response["text"]
@@ -543,10 +685,15 @@ def generate_texts_ai(
     api_key = os.getenv("OPENAI_API_KEY")
     model_override = os.getenv("OPENAI_TEXT_MODEL")
     config = AIModelConfig(model=model_override or AIModelConfig.model)
-    client = _ensure_client(api_key)
+
+    client, provider = _resolve_ai_client()
 
     if client is None:
-        return _call_module_d_fallback(analysis_results, visualization_plan, style_key)
+        logger.warning("Module H: aucune clé API disponible → fallback Module D.")
+        result = _call_module_d_fallback(analysis_results, visualization_plan, style_key)
+        result["_fallback"] = True
+        result["_fallback_reason"] = "clé API absente"
+        return result
 
     try:
         dataset_context = _build_dataset_context(analysis_results, plots)
@@ -562,16 +709,17 @@ def generate_texts_ai(
                 style_key,
                 client,
                 config,
+                provider=provider,
             )
 
         correlations_texts: List[Dict[str, Any]] = []
         relations = (analysis_results or {}).get("relations", {})
         for correlation in relations.get("correlations", []) if isinstance(relations, dict) else []:
-            text = generate_correlation_text(correlation, style_key, client, config)
+            text = generate_correlation_text(correlation, style_key, client, config, provider=provider)
             correlations_texts.append({"cols": correlation.get("columns", []), "text": text})
 
-        global_intro = generate_global_intro(dataset_context, style_key, client, config)
-        global_summary = generate_summary(dataset_context, per_column, style_key, client, config)
+        global_intro = generate_global_intro(dataset_context, style_key, client, config, provider=provider)
+        global_summary = generate_summary(dataset_context, per_column, style_key, client, config, provider=provider)
 
         return {
             "global_intro": global_intro,
@@ -579,8 +727,12 @@ def generate_texts_ai(
             "per_column": per_column,
             "correlations": correlations_texts,
         }
-    except AIGenerationError:
-        return _call_module_d_fallback(analysis_results, visualization_plan, style_key)
+    except AIGenerationError as exc:
+        logger.warning("Module H: échec de la génération IA (%s) → fallback Module D.", exc)
+        result = _call_module_d_fallback(analysis_results, visualization_plan, style_key)
+        result["_fallback"] = True
+        result["_fallback_reason"] = str(exc)
+        return result
 
 
 __all__ = ["generate_texts_ai"]

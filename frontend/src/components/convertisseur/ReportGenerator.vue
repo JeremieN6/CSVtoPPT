@@ -149,12 +149,12 @@
         <div class="flex items-start gap-3">
           <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100">⚡</span>
           <div class="flex-1 space-y-1 text-sm text-gray-800 dark:text-gray-100">
-            <p class="font-semibold">Limite gratuite</p>
+            <p class="font-semibold">{{ quotaToast.title }}</p>
             <p>{{ quotaToast.message }}</p>
-            <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
+            <div v-if="quotaToast.showUpgrade" class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
               <a class="font-semibold text-blue-700 underline dark:text-blue-300" href="/inscription">Passer Pro</a>
               <span aria-hidden="true">·</span>
-              <a class="font-semibold text-gray-700 underline dark:text-gray-200" href="/profil">Voir mon quota</a>
+              <a class="font-semibold text-gray-700 underline dark:text-gray-200" href="/mon-compte">Voir mon quota</a>
             </div>
           </div>
           <button class="text-gray-400 transition hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" @click="hideQuotaToast" aria-label="Fermer la notification">
@@ -254,7 +254,7 @@ const progress = ref(0)
 const showQuotaModal = ref(false)
 const quotaModalMessage = ref('Limite atteinte sur votre plan actuel.')
 const quotaCounts = ref({ used: null, limit: null })
-const quotaToast = ref({ visible: false, message: '' })
+const quotaToast = ref({ visible: false, message: '', title: 'Avertissement', showUpgrade: false })
 let quotaToastTimer = null
 let progressTimer = null
 
@@ -286,7 +286,7 @@ const handleFileSelected = (file) => {
   if (file.size > limit) {
     showQuotaToast(
       "Le fichier est vraiment trop volumineux. Veuillez le segmenter ou choisir un autre fichier. Sinon contactez-nous : contact-csvtoppt@sassify.fr",
-      { persistent: true }
+      { persistent: true, title: 'Fichier trop volumineux', showUpgrade: true }
     )
     selectedFile.value = null
     return
@@ -384,7 +384,7 @@ const generatePresentation = async () => {
       }
       if (status === 403) {
         if (/limite du plan free/i.test(errorDetail) || /5\s*000/.test(errorDetail)) {
-          showQuotaToast(errorDetail || 'Votre fichier dépasse la limite de lignes du plan Free.', { persistent: true })
+          showQuotaToast(errorDetail || 'Votre fichier dépasse la limite de lignes du plan Free.', { persistent: true, title: 'Limite Free', showUpgrade: true })
           isLoading.value = false
           return
         }
@@ -407,10 +407,18 @@ const generatePresentation = async () => {
         isLoading.value = false
         return
       }
-      if (status === 400 || status === 413 || /trop volumineux/i.test(errorDetail)) {
+      if (status === 413 || /trop volumineux|fichier trop|taille maximale/i.test(errorDetail)) {
         showQuotaToast(
           "Le fichier est vraiment trop volumineux. Veuillez le segmenter ou choisir un autre fichier. Sinon contactez-nous : contact-csvtoppt@sassify.fr",
-          { persistent: true }
+          { persistent: true, title: 'Fichier trop volumineux', showUpgrade: true }
+        )
+        isLoading.value = false
+        return
+      }
+      if (status === 400) {
+        showQuotaToast(
+          errorDetail || 'Erreur lors de la génération. Vérifiez votre fichier et réessayez.',
+          { persistent: true, title: 'Erreur de génération' }
         )
         isLoading.value = false
         return
@@ -463,7 +471,9 @@ const parseQuotaDetail = (detail) => {
 
 const showQuotaToast = (message, options = {}) => {
   const persistent = Boolean(options.persistent)
-  quotaToast.value = { visible: true, message, persistent }
+  const title = options.title || 'Avertissement'
+  const showUpgrade = Boolean(options.showUpgrade)
+  quotaToast.value = { visible: true, message, persistent, title, showUpgrade }
   if (quotaToastTimer) {
     clearTimeout(quotaToastTimer)
     quotaToastTimer = null

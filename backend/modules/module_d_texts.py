@@ -121,7 +121,41 @@ def _generate_text(
 def _generate_fallback_text(column_name: str, column_summary: Dict[str, Any], graph_type: str) -> str:
     """Generate unique descriptive + light-analytic text for each column based on its statistics."""
 
-    dtype = column_summary.get("dtype", "données")
+    # Bivariate / correlation slides  (column = "ColA+ColB")
+    if "+" in column_name:
+        parts = column_name.split("+", 1)
+        col_a, col_b = parts[0].strip(), parts[1].strip()
+        corr_value = column_summary.get("correlation")
+        if corr_value is not None:
+            try:
+                c = float(corr_value)
+                direction = "positive" if c >= 0 else "négative"
+                abs_c = abs(c)
+                if abs_c >= 0.90:
+                    strength = "quasi-parfaite"
+                    plain = "les deux variables évoluent de façon presque identique"
+                elif abs_c >= 0.70:
+                    strength = "forte"
+                    plain = "les deux variables tendent à évoluer dans le même sens"
+                else:
+                    strength = "modérée"
+                    plain = "une tendance commune existe mais avec des écarts notables"
+                return (
+                    f"Une corrélation {strength} {direction} (r = {c:.2f}) est observée entre "
+                    f"{col_a} et {col_b}, ce qui signifie que {plain}. "
+                    f"Cette relation doit être examinée dans son contexte : elle peut refléter "
+                    f"un lien direct entre les deux variables, ou une évolution parallèle due à "
+                    f"un facteur commun."
+                )
+            except (TypeError, ValueError):
+                pass
+        return (
+            f"La visualisation croise les colonnes {col_a} et {col_b}. "
+            f"Le graphique permet d'identifier visuellement la relation entre ces deux variables "
+            f"et de repérer d'éventuels regroupements ou tendances communes."
+        )
+
+    dtype = column_summary.get("dtype", "")
     missing_pct = column_summary.get("missing_percent", 0)
     unique_values = column_summary.get("unique_values", "n/a")
 
@@ -139,14 +173,34 @@ def _generate_fallback_text(column_name: str, column_summary: Dict[str, Any], gr
         "texte": "textuelle",
         "text": "textuelle",
     }
-    friendly_type = type_labels.get(dtype, dtype)
+    friendly_type = type_labels.get(dtype, dtype) if dtype else "mixte"
     sentences.append(f"La colonne {column_name} contient des données {friendly_type}.")
 
-    if isinstance(unique_values, int):
+    # Use real numeric stats when available
+    min_val = column_summary.get("min")
+    max_val = column_summary.get("max")
+    mean_val = column_summary.get("mean")
+    if min_val is not None and max_val is not None and mean_val is not None:
+        sentences.append(
+            f"Les valeurs s'étendent de {min_val} à {max_val}, avec une moyenne de {mean_val}."
+        )
+        # Cross-column insight: which label (e.g. Mois) has the max value?
+        max_label = column_summary.get("max_label")
+        min_label = column_summary.get("min_label")
+        label_col = column_summary.get("label_column")
+        if max_label and label_col:
+            sentences.append(
+                f"La valeur la plus élevée ({max_val}) est enregistrée pour {label_col} = {max_label}."
+            )
+        if min_label and label_col and min_label != max_label:
+            sentences.append(
+                f"La valeur la plus basse ({min_val}) correspond à {label_col} = {min_label}."
+            )
+    elif isinstance(unique_values, int):
         if unique_values <= 5:
             sentences.append(f"On observe une faible diversité avec seulement {unique_values} valeurs distinctes.")
         elif unique_values <= 20:
-            sentences.append(f"La diversité est modérée avec {unique_values} modalités différentes.")
+            sentences.append(f"La diversité est modérée avec {unique_values} valeurs distinctes.")
         else:
             sentences.append(f"Une forte variété est constatée avec {unique_values} valeurs uniques.")
 
@@ -203,7 +257,11 @@ def generate_texts(
     for plot in plots:
         column_name = plot.get("column")
         column_summary = column_info.get(column_name, {}) if isinstance(column_info, dict) else {}
-        
+        # For bivariate/correlation plots, enrich summary with the correlation value from the plot dict
+        if "+" in (column_name or "") and "correlation" in plot:
+            column_summary = dict(column_summary)
+            column_summary.setdefault("correlation", plot["correlation"])
+
         # Generate unique text per column based on stats
         if client:
             prompt = _build_chart_prompt(plot, column_summary)

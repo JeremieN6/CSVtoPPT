@@ -24,7 +24,8 @@ BOOLEAN_CANONICAL = {"0", "1", "true", "false", "oui", "non", "yes", "no"}
 LONG_TEXT_AVG_THRESHOLD = 80
 LONG_TEXT_MAX_THRESHOLD = 200
 HIGH_MISSING_THRESHOLD = 40.0  # percent
-CORRELATION_MIN_ABS = 0.5
+CORRELATION_MIN_ABS = 0.65  # Only report meaningful correlations
+MAX_CORRELATION_PAIRS = 4    # Cap to avoid flooding slides with redundant pairs
 
 
 def infer_column_type(series: pd.Series) -> str:
@@ -120,6 +121,9 @@ def detect_relations(
                         "value": round(float(corr_value), 3),
                     }
                 )
+        # Keep only the most informative pairs (avoid flooding slides)
+        relations["correlations"].sort(key=lambda c: abs(c["value"]), reverse=True)
+        relations["correlations"] = relations["correlations"][:MAX_CORRELATION_PAIRS]
 
     categorical_cols = [
         col
