@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.text import MSO_AUTO_SIZE, PP_ALIGN
 from pptx.util import Inches, Pt
 
 DEFAULT_FALLBACK_TEXT = "Analyse non disponible."
@@ -199,6 +199,7 @@ def create_graph_slide(
 
     frame = text_box.text_frame
     frame.word_wrap = True
+    frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
     frame.margin_bottom = 0
     frame.margin_top = 0
     frame.margin_left = Pt(6)
@@ -261,6 +262,7 @@ def create_conclusion_slide(prs: Presentation, conclusion_text: str, theme_cfg: 
     text_box = slide.shapes.add_textbox(left=Inches(0.9), top=Inches(1.8), width=width - Inches(1.8), height=Inches(4.5))
     frame = text_box.text_frame
     frame.word_wrap = True
+    frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
     frame.paragraphs[0].text = conclusion_text or DEFAULT_FALLBACK_TEXT
     frame.paragraphs[0].font.size = Pt(20)
     frame.paragraphs[0].font.name = theme_cfg["body_font"]

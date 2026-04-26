@@ -444,6 +444,17 @@ def _compute_conclusion_stats(df: pd.DataFrame, axis_col: Optional[str]) -> List
     return result
 
 
+def _truncate_ai_text(text: str, max_chars: int = 350) -> str:
+    """Clip text to max_chars at the last complete sentence boundary."""
+    if not text or len(text) <= max_chars:
+        return text
+    clipped = text[:max_chars]
+    last_dot = clipped.rfind(".")
+    if last_dot > 0:
+        return clipped[: last_dot + 1]
+    return clipped.rstrip() + "."
+
+
 def _local_column_text(column: str, metadata: Dict[str, Any]) -> Dict[str, str]:
     profile = metadata.get("profile", {}) or {}
     dtype_key = (profile.get("column_type") or profile.get("dtype") or "colonne").lower()
@@ -513,9 +524,9 @@ def generate_column_text(
         prompt = (
             f"Corrélation {direction} {strength} (r = {r:.2f}) entre '{col_a}' et '{col_b}'.\n\n"
             "Écris en JSON avec deux clés :\n"
-            "- 'analysis' (1 phrase) : décris la relation en termes business concrets — "
+            "- 'analysis' (1 phrase, 120 caractères max) : décris la relation en termes business concrets — "
             "traduis la force de la corrélation en mots, pas en chiffres bruts.\n"
-            "- 'insights' (1-2 phrases) : quelle implication opérationnelle ? "
+            "- 'insights' (1-2 phrases, 180 caractères max) : quelle implication opérationnelle ? "
             "Si les deux variables croissent en parallèle dans le temps, précise que c'est "
             "peut-être lié à une tendance commune plutôt qu'un lien causal direct. "
             "Conclus par ce que ça implique concrètement (coût, opportunité, risque).\n"
@@ -548,9 +559,9 @@ def generate_column_text(
                 f"Tendance sur la période : en {trend_stats['trend']} "
                 f"de {trend_stats['pct_change_half']:.0f}% entre la 1re et la 2e moitié\n\n"
                 "Écris en JSON avec deux clés :\n"
-                "- 'analysis' (2 phrases max) : tendance principale + valeurs remarquables. "
+                "- 'analysis' (2 phrases max, 150 caractères max) : tendance principale + valeurs remarquables. "
                 "Mentionne la progression ou le pic si pertinent.\n"
-                "- 'insights' (1-2 phrases) : interprétation business actionnable. "
+                "- 'insights' (1-2 phrases, 180 caractères max) : interprétation business actionnable. "
                 "Qu'est-ce qui est notable ou à surveiller ? Aucune reformulation des chiffres bruts. "
                 "Pas de formulations génériques type 'les données montrent'. "
                 "Parle comme un consultant orienté décision."
@@ -581,8 +592,8 @@ def generate_column_text(
     if not all(key in response for key in ("analysis", "insights")):
         raise AIGenerationError("Format JSON inattendu pour l'analyse de colonne.")
     return {
-        "analysis": response.get("analysis") or DEFAULT_GENERIC_TEXT,
-        "insights": response.get("insights") or DEFAULT_GENERIC_TEXT,
+        "analysis": _truncate_ai_text(response.get("analysis") or DEFAULT_GENERIC_TEXT),
+        "insights": _truncate_ai_text(response.get("insights") or DEFAULT_GENERIC_TEXT),
         "anomalies": "",
     }
 
@@ -677,7 +688,7 @@ def generate_summary(
     response = _call_ai_json(client, provider, config, style, prompt)
     if "text" not in response or not str(response.get("text", "")).strip():
         raise AIGenerationError("Réponse JSON invalide pour la synthèse.")
-    return str(response["text"]).strip()
+    return _truncate_ai_text(str(response["text"]).strip(), max_chars=500)
 
 
 def generate_correlation_text(
